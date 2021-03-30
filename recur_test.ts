@@ -56,7 +56,9 @@ Deno.test({
 Deno.test({
     name: "The next day is the day after the start date",
     fn: () => {
-        const re = new RecurringEvent("FREQ=DAILY;INTERVAL=1;BYDAY=SU;BYHOUR=8,9;BYMINUTE=30", start);
+        //const re = new RecurringEvent("FREQ=DAILY;INTERVAL=1;BYDAY=SU;BYHOUR=8,9;BYMINUTE=30;BYSETPOS=-1", start);
+        const re = new RecurringEvent("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1", start);
+        
         //const re = new RecurringEvent("FREQ=YEARLY;INTERVAL=1;BYMONTH=1,2,3;BYWEEKNO=52;BYYEARDAY=150,151,152;COUNT=50", start);
         console.log(re.start);
 

@@ -57,7 +57,7 @@ export class RecurringEvent {
     frequency!: Frequency;
     until?: Date;
     count?: number;
-    interval: number = 1;
+    interval = 1;
 
     bySecond: number[] = [];
     byMinute: number[] = [];
@@ -71,7 +71,7 @@ export class RecurringEvent {
 
     weekStart: Weekday = Weekday.MO;
 
-    isValid: boolean = true;
+    isValid = true;
     start: Date = new Date();
     last: Date | undefined;
 
@@ -102,7 +102,7 @@ export class RecurringEvent {
         if ((this.frequency == Frequency.DAILY || this.frequency == Frequency.WEEKLY || this.frequency == Frequency.MONTHLY) &&
             this.byYearDay.length > 0) return false;
 
-        if (this.byWeekNo.length > 0 && this.frequency != Frequency.YEARLY) return false;
+        if (this.byWeekNo.length > 0 && this.frequency != Frequency.YEARLY) return false;        
 
         return true;
     }
@@ -210,17 +210,6 @@ export class RecurringEvent {
         });
     }
 
-    private getNextDateTime(): Date {
-
-        return new Date();
-    }
-
-    private nextYear(currentDateTime:Date): Date {
-        if (this.byMonth.length > 0) {
-
-        }
-        return currentDateTime;
-    }
 
     private getWeekNumber(inputDate:Date): number {
         let d = new Date(inputDate);
@@ -257,10 +246,6 @@ export class RecurringEvent {
         return days;
     }
 
-    // private isLeapYear(year: number) {
-    //     // source: https://stackoverflow.com/questions/3220163/how-to-find-leap-year-programmatically-in-c/11595914#11595914
-    //     return ((year & 3) == 0 && ((year % 25) != 0 || (year & 15) == 0));
-    // }
 
     private getYearDay(yearDate: Date, dayOfYear: number): Date {
         let eventDate = new Date();
@@ -284,85 +269,51 @@ export class RecurringEvent {
         return monthDays;
     }
 
-    private getDaysByMonth(targetDate: Date, days: number[]): Date[] {
-        let daysByMonth = [];
-        let targetMonth = targetDate.getMonth();
-        let currentDate = new Date(targetDate);
-        let dayOfMonth = 1;
-        currentDate.setDate(dayOfMonth++);
+    /*
+        Get all specified days of week for the month of the given Date
+    */
+    private getDaysOfWeekInMonth(sourceDate: Date, days: number[]): number[] {
+        
+        const resultDays = [];
+        const currentDate = new Date(sourceDate);
+        const targetMonth = currentDate.getMonth();
+        currentDate.setDate(1);
 
-        while (currentDate.getMonth() != targetMonth) {  
-            if (days.includes(currentDate.getDay())) daysByMonth.push(currentDate);
-
-            currentDate = new Date(targetDate);
-            currentDate.setDate(dayOfMonth++);
+        while (currentDate.getMonth() == targetMonth) {  
+            if (days.includes(currentDate.getDay())) resultDays.push(currentDate.valueOf());
+            currentDate.setDate(currentDate.getDate()+1);
         }
-        return daysByMonth;
+        return resultDays;
     }
 
-    private getDaysByYear(targetDate: Date, days: number[]): Date[] {
-        let daysByYear = [];
-        let targetYear = targetDate.getFullYear();
-        let currentDate = new Date(targetDate);
+    private getDaysOfWeekInYear(targetYear: number, days: number[]): number[] {
+        const resultDays = [];     
+
+        const sourceDate = new Date(targetYear, 0, 1);
+        let currentDate = new Date(sourceDate);
         let dayOfYear = 1;
         currentDate.setDate(dayOfYear++);
 
-        while (currentDate.getFullYear() != targetYear) {  
-            if (days.includes(currentDate.getDay())) daysByYear.push(currentDate);
+        while (currentDate.getFullYear() == targetYear) {  
+            if (days.includes(currentDate.getDay())) resultDays.push(currentDate.valueOf());
 
-            currentDate = new Date(targetDate);
+            currentDate = new Date(sourceDate);
             currentDate.setDate(dayOfYear++);
         }
-        return daysByYear;
+        return resultDays;
     }
 
 
-    private getYearlyEvents(year:number): Set<Date> {
+    private getEventsByFrequency(frequency: Frequency, startTime: Date): Date[] {
 
-        let results = new Set<Date>();
-
-        results.add(new Date(year,0,1));
-        results.add(new Date(year,0,2));
-        results.add(new Date(year,0,3));
-        results.add(new Date(year,0,4));
-        results.add(new Date(year,0,5));
-        results.add(new Date(year,0,6));
-
+        const results = this.processEventSet(startTime, frequency).filter(r => r >= this.start);
+        console.log("EventSet: ", results);
         return results;
-    }
-
-    private getEventsByFrequency(frequency: Frequency, intervalTime: Date): Date[] {
-
-        let eventSet = new Set<Date>();
-        eventSet.add(intervalTime);
-        let currentTime = new Date(intervalTime);
-        switch (frequency) {
-            case Frequency.SECONDLY:
-                break;
-            case Frequency.MINUTELY:
-                break;
-            case Frequency.HOURLY:
-                break;
-            case Frequency.DAILY:
-                return this.processEventSet(eventSet, frequency).filter(r => r >= this.start);
-            case Frequency.WEEKLY:
-                break;
-            case Frequency.MONTHLY:
-                break;
-            case Frequency.YEARLY:
-                //console.log("BEFORE:", eventSet);
-                let results = this.processEventSet(eventSet, frequency);
-                console.log(results);
-                return (results.filter(r => r >= this.start));
-                
-                //return results;
-        }
-        return [];
     }
 
     private getNextIntervalTime(frequency: Frequency, currentTime: Date): Date {
 
-        let nextTime = new Date(currentTime);
+        const nextTime = new Date(currentTime);
         switch (frequency) {
             case Frequency.SECONDLY:
                 nextTime.setSeconds(nextTime.getSeconds() + this.interval);
@@ -377,7 +328,7 @@ export class RecurringEvent {
                 nextTime.setDate(nextTime.getDate() + this.interval);
                 return nextTime;
             case Frequency.WEEKLY:
-                //nextTime.se(nextTime.getSeconds() + this.interval);
+                nextTime.setDate(nextTime.getDate() + 7 * this.interval);
                 return nextTime;
             case Frequency.MONTHLY:
                 nextTime.setMonth(nextTime.getMonth() + this.interval);
@@ -390,18 +341,17 @@ export class RecurringEvent {
 
 
     * GenerateDate(): IterableIterator<Date> {
-        let recurrenceArray: Set<Date>[] = [];
 
-        let coreEventSet = new Set<Date>();
+        const coreEventSet = new Set<Date>();
         coreEventSet.add(this.start);
 
         let currentTime = this.start;
         let eventCount = 0;
         while (this.until == undefined || currentTime > this.until) {
 
-            let eventSet = this.getEventsByFrequency(this.frequency, currentTime);
+            const eventSet = this.getEventsByFrequency(this.frequency, currentTime);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
-            for (let evt of eventSet) {
+            for (const evt of eventSet) {
                 yield evt;
                 eventCount++;
                 if (eventCount == this.count) {
@@ -419,132 +369,188 @@ export class RecurringEvent {
         });
     }
 
-    private processEventSet(events: Set<Date>, freq: Frequency): Date[] {
+    private filterOnDaysOfWeek(events:Set<number>): number[] {
 
-        let resultEventSet = new Set<number>([...events].map(e => e.valueOf()));
-    
-        // BYMONTH
-        let byMonthEvents = new Set<number>();
-        events.forEach(evt => {
-            this.byMonth.forEach(m => {
-                let byMonthEvent = (new Date(evt));
-                byMonthEvent.setMonth(m-1);
-                byMonthEvents.add(byMonthEvent.valueOf());
-                //console.log(byMonthEvent);
+        const daysArray = this.byDay.map(day => day.weekday);
+        // console.log("this.byDay: ", daysArray);
+        // console.log("events: ", events);
+        return [...events].filter(evt => {
+            return daysArray.includes(new Date(evt).getDay());
+        });
+    }
+
+    private getByWeekNoEvents(targetEvent: Date): Set<number> {
+        const results = new Set<number>();
+
+        this.byWeekNo.forEach(wk => {
+            this.getDaysFromWeekNo(wk, targetEvent).forEach(day => {
+                results.add(day.valueOf());
             });
         });
-        byMonthEvents.forEach(e => resultEventSet.add(e));
-        //console.log("BYMONTH_Events: ", resultEventSet);
+        return results;
+    }
+
+    private getByDayEvents(freq: Frequency, sourceEvent: Date, events:Set<number>): Set<number> {
+        const results = new Set<number>();
+       
+        if (freq == Frequency.YEARLY) {
+            if (this.byYearDay.length > 0 || this.byMonthDay.length > 0) {
+                // limit
+                this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
+            } else if (this.byWeekNo.length > 0) {
+                console.log("by week no");
+                // NOT YET IMPLEMENTED
+
+            } else if (this.byMonth.length > 0) { 
+                // special expand for monthly                
+                const days = this.getDaysOfWeekInMonth(sourceEvent, this.byDay.map(day => day.weekday));                    
+                days.forEach(d => results.add(d));                
+
+            } else {
+                // special expand for yearly                
+                const daysByYear = this.getDaysOfWeekInYear(sourceEvent.getFullYear(), this.byDay.map(day => day.weekday));
+                daysByYear.forEach(d => results.add(d));
+            }
+    
+        } else if (freq == Frequency.MONTHLY) {
+            if (this.byMonthDay.length > 0) {
+                // limit
+                this.filterOnDaysOfWeek(events).forEach(r => results.add(r));                
+            } else {
+                // special expand
+                const days = this.getDaysOfWeekInMonth(sourceEvent, this.byDay.map(day => day.weekday));
+                days.forEach(d => results.add(d));
+            }
+
+        } else {
+            // limit
+            this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
+        }
+
+        return results;
+    }
+
+    private getByMonthEvents(targetEvent: Date): Set<number> {
+        const results = new Set<number>();
+
+        const currentDate = new Date(targetEvent);
+        this.byMonth.forEach(m => {
+            currentDate.setMonth(m-1);
+            results.add(currentDate.valueOf());
+        });
+
+        return results;
+    }
+
+    private getByHourEvents(events:Set<number>): Set<number> {
+        if (this.byHour.length == 0) return events;
+
+        const byHourResults = new Set<number>();        
+        events.forEach(e => {
+            this.byHour.forEach(h => {
+                const hourEvent = new Date(e);
+                hourEvent.setHours(h);
+                byHourResults.add(hourEvent.valueOf());
+            });
+        });        
+        return byHourResults;
+    }
+
+    private getByMinuteEvents(events:Set<number>): Set<number> {
+        if (this.byMinute.length == 0) return events;
+
+        const byMinuteResults = new Set<number>();        
+        events.forEach(e => {
+            this.byMinute.forEach(m => {
+                const minuteEvent = new Date(e);
+                minuteEvent.setMinutes(m);
+                byMinuteResults.add(minuteEvent.valueOf());
+            });
+        });
+        return byMinuteResults;
+    }
+
+    private getBySecondEvents(events:Set<number>): Set<number> {
+        if (this.bySecond.length == 0) return events;
+
+        const bySecondResults = new Set<number>();
+        events.forEach(e => {            
+            this.bySecond.forEach(m => {
+                const minuteEvent = new Date(e);
+                minuteEvent.setSeconds(m);
+                bySecondResults.add(minuteEvent.valueOf());
+            });
+        });
+        return bySecondResults;
+    }
+
+    private processEventSet(sourceEvent: Date, freq: Frequency): Date[] {
+
+        let resultEventSet = new Set<number>();
+        resultEventSet.add(sourceEvent.valueOf());
+
+        // BYMONTH
+        this.getByMonthEvents(sourceEvent).forEach(e => resultEventSet.add(e));
 
         // BYWEEKNO
-        // get the distinct years in the eventSet
-        //let uniqueYears = [...new Set(Array.from(events).map(d => d.getFullYear()))];
-        let uniqueYearEvents: Set<Date> = new Set(this.uniqueBy(Array.from(events), (d:Date) => d.getFullYear()));
-
-        //console.log("UniqueYears: ", uniqueYearEvents);
-        let byWeekNoEvents = new Set<number>();
-        uniqueYearEvents.forEach(ye => {
-            // FIX: needs to use the event time on the date objs
-            this.byWeekNo.forEach(wk => {
-                this.getDaysFromWeekNo(wk, ye).forEach(day => {
-                    byWeekNoEvents.add(day.valueOf());
-                });
-            });
-        });
-        byWeekNoEvents.forEach(e => resultEventSet.add(e));
-        //console.log("RESULT: ", resultEventSet);
+        this.getByWeekNoEvents(sourceEvent).forEach(e => resultEventSet.add(e));
 
         // BYYEARDAY
         let byYearDayEvents = new Set<number>();
-        events.forEach(evt => {
-            this.byYearDay.forEach(yd => {
-                let byYearDayEvent = this.getYearDay(evt, yd);
-                byYearDayEvents.add(byYearDayEvent.valueOf());
-            });
+        this.byYearDay.forEach(yd => {
+            let byYearDayEvent = this.getYearDay(sourceEvent, yd);
+            byYearDayEvents.add(byYearDayEvent.valueOf());
         });
+        byYearDayEvents.forEach(e => resultEventSet.add(e));
+        
 
         // BYMONTHDAY
         // valid days of the month....
-
         let byMonthDayEventSet = new Set<number>();
         //for each event in the event set
-        events.forEach(evt => {
+        resultEventSet.forEach(evt => {
             this.byMonthDay.forEach(md => {
-                let byMonthDayEvents = this.getMonthDays(evt, md);
+                let byMonthDayEvents = this.getMonthDays(new Date(evt), md);
                 byMonthDayEvents.forEach(mde => byMonthDayEventSet.add(mde.valueOf()));
             });
         });
 
-        // BYDAY (of week)  [if YEARLY]
-        if (this.byDay.length > 0) {
-            let daysArray = this.byDay.map(day => day.weekday.valueOf());
-            let byDayEventSet = new Set<number>();
+        // BYDAY
+        // console.log("B:", resultEventSet);
+        resultEventSet = this.getByDayEvents(freq, sourceEvent, resultEventSet);
+        //.forEach(e => resultEventSet.add(e));
+        // console.log("A:", resultEventSet);
 
-            if (this.byYearDay.length > 0 || this.byMonthDay.length > 0) {
-                // limit
-                events.forEach((val, key, setObj) => {
-                    let dateDay = (new Date(val)).getDay();
-                    if (!daysArray.includes(dateDay)) {
-                        setObj.delete(val);
-                    }
-                });
-            }
-            if (this.byMonth.length > 0) { 
-                // special expand for monthly
-                events.forEach(ce => {
-                    let daysByMonth = this.getDaysByMonth(ce, daysArray);
-                    daysByMonth.forEach(d => byDayEventSet.add(d.valueOf()));
-                });
-
-            // What about ByWeekNo?
-            // we really need to filter this somehow to avoid double duty
-            } else {
-                // special expand for yearly
-                uniqueYearEvents.forEach(ye => {
-                    let daysByYear = this.getDaysByYear(new Date(ye.getFullYear(), 0, 1), daysArray);
-                    daysByYear.forEach(d => byDayEventSet.add(d.valueOf()));
-                });
-            }
-        }
 
         // BYHOUR
-        let byHourEventSet = new Set<number>();
-        //for each event in the event set
-        events.forEach(evt => {
-            this.byHour.forEach(h => {
-                let hourEvent = (new Date(evt)).setHours(h);
-                byHourEventSet.add( hourEvent.valueOf() );
-            });
-        });
+        resultEventSet = this.getByHourEvents(resultEventSet);
+        //console.log(resultEventSet);
 
-        let byMinuteEventSet = new Set<number>();
-        //for each event in the event set
-        events.forEach(evt => {
-            this.byMinute.forEach(m => {
-                let minuteEvent = (new Date(evt)).setMinutes(m);
-                byMinuteEventSet.add( minuteEvent.valueOf() );
-            });
-        });
+        // BYMINUTE
+        resultEventSet = this.getByMinuteEvents(resultEventSet);
+        //console.log(resultEventSet);
 
-        let bySecondEventSet = new Set<number>();
-        //for each event in the event set
-        events.forEach(evt => {
-            this.bySecond.forEach(s => {
-                let secondEvent = (new Date(evt)).setSeconds(s);
-                bySecondEventSet.add( secondEvent.valueOf() );
-            });
-        });
+        // BYSECOND
+        resultEventSet = this.getBySecondEvents(resultEventSet);
 
 
         // BYSETPOS
         // for each set of events generated,
         // order them, then pick the events listed by the SETPOS list
-        
-        this.bySetPos
+        const resultArray = Array.from([...resultEventSet]).sort().map(e => new Date(e));
+        if (this.bySetPos.length == 0) {
+            return resultArray;
+        } else {
+            const result: Date[] = [];
+            this.bySetPos.forEach(pos => {            
+                const absolutePosition = Math.abs(pos);
+                if (absolutePosition > resultArray.length) return;
 
-
-
-        return Array.from([...resultEventSet]).sort().map(e => new Date(e));
-         
+                const index = (pos < 0 ? resultArray.length - Math.abs(pos) : pos - 1);
+                // take this for a result.
+                result.push(resultArray[index]);
+            });
+            return result;
+        }        
     }
 }
