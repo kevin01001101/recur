@@ -48,33 +48,61 @@ Deno.test({
 Deno.test({
     name: "The BYDAY rule part MUST NOT be specified with a numeric value when the FREQ rule part is not set to MONTHLY or YEARLY",
     fn: () => {
-        const re = new RecurringEvent("FREQ=DAILY;BYDAY=MO", start);
+        const re = new RecurringEvent("FREQ=DAILY;BYDAY=+1MO", start);
         assertEquals(re.isValid, false);
     }
 })
 
 Deno.test({
-    name: "The next day is the day after the start date",
+    name: "The BYDAY rule part MAY be specified WITHOUT a numeric value when the FREQ rule part is not set to MONTHLY or YEARLY",
+    fn: () => {
+        const re = new RecurringEvent("FREQ=DAILY;BYDAY=MO", start);
+        assertEquals(re.isValid, true);
+    }
+})
+
+Deno.test({
+    name: '"FREQ=DAILY;COUNT=10" shall produce 10 valid dates',
+    fn: () => {
+        const start = new Date();
+        const re = new RecurringEvent("FREQ=DAILY;COUNT=10", start);
+        const generator = re.GenerateDate();
+        const startPlus9 = new Date(start);
+        startPlus9.setDate(startPlus9.getDate()+9);
+
+        const results = [];
+        for (let i=0; i <= 10; i++) {
+            results.push(generator.next());
+        }        
+                
+        assertEquals(results.filter(r => r.done == false).length, 10);
+        assertEquals(results[0].value.getDate(), start.getDate());
+        assertEquals(results[9].value.getDate(), startPlus9.getDate());
+    }
+})
+
+Deno.test({
+    name: "Iterator Testing",
     fn: () => {
         //const re = new RecurringEvent("FREQ=DAILY;INTERVAL=1;BYDAY=SU;BYHOUR=8,9;BYMINUTE=30;BYSETPOS=-1", start);
-        const re = new RecurringEvent("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1", start);
+        const re = new RecurringEvent("FREQ=DAILY;BYMONTH=5;COUNT=50", new Date(2021,5,28));
         
         //const re = new RecurringEvent("FREQ=YEARLY;INTERVAL=1;BYMONTH=1,2,3;BYWEEKNO=52;BYYEARDAY=150,151,152;COUNT=50", start);
         console.log(re.start);
 
-        let iterator = re.GenerateDate();
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
-        console.log(iterator.next());
+        const generator = re.GenerateDate();
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
+        console.log(generator.next());
         
         assertEquals(true, true);
     }
