@@ -1,15 +1,17 @@
-import { assertEquals } from "https://deno.land/std@0.90.0/testing/asserts.ts";
+import { assertEquals, assertThrows } from "https://deno.land/std@0.90.0/testing/asserts.ts";
 import { RecurringEvent } from "./RecurringEvent.ts";
 
-Deno.test({
-    name: "First Test",
-    fn: () => {
-        const x = 1 + 2;
-        assertEquals(x, 3);
-    }
-});
 
 const start = new Date();
+
+
+Deno.test("The FREQ rule part is REQUIRED",
+    () => {
+        assertThrows(() => {
+            const re = new RecurringEvent("BYDAY=MO", new Date());
+        }, Error, "The FREQ rule part is REQUIRED");
+    });
+
 
 Deno.test({
     name: "A recurrence event with an invalid Rule Part is invalid",
@@ -51,7 +53,7 @@ Deno.test({
         const re = new RecurringEvent("FREQ=DAILY;BYDAY=+1MO", start);
         assertEquals(re.isValid, false);
     }
-})
+});
 
 Deno.test({
     name: "The BYDAY rule part MAY be specified WITHOUT a numeric value when the FREQ rule part is not set to MONTHLY or YEARLY",
@@ -59,7 +61,8 @@ Deno.test({
         const re = new RecurringEvent("FREQ=DAILY;BYDAY=MO", start);
         assertEquals(re.isValid, true);
     }
-})
+});
+
 
 Deno.test({
     name: '"FREQ=DAILY;COUNT=10" shall produce 10 valid dates',

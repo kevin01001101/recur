@@ -75,16 +75,16 @@ export class RecurringEvent {
     start: Date = new Date();
     last: Date | undefined;
 
-    constructor(recurrenceString: string, start: Date, end?: Date) {
-        try {
-            this.parseRecurrence(recurrenceString);
-            this.isValid = this.validateRecurrence();
-        } catch (e) {
-            console.error(e);
-            this.isValid = false;
-        }
+    constructor(recurrenceString: string, start?: Date, end?: Date) {
+        //try {
+        this.parseRecurrence(recurrenceString);
+        this.validateRecurrence();
+        // } catch (e) {
+        //     console.error(e);
+        //     this.isValid = false;
+        // }
         
-        this.start = start;
+        if (start != undefined) this.start = start;
     }
 
     // *[Symbol.iterator]() {
@@ -109,6 +109,7 @@ export class RecurringEvent {
     // }
 
     private validateRecurrence = (): boolean => {
+        if (this.frequency == undefined) { throw Error("The FREQ rule part is REQUIRED") }        
 
         if (this.frequency != Frequency.YEARLY && this.frequency != Frequency.MONTHLY && this.byDay.some(d => d.ordinalWeek != 0)) return false;
         if (this.frequency == Frequency.YEARLY && this.byDay.length > 0 && this.byWeekNo.length > 0) return false;
@@ -128,7 +129,6 @@ export class RecurringEvent {
         const ruleParts = recurrenceRule.split(';');
         ruleParts.map(rp => {
             const [ruleType, ruleValue] = rp.split("=");
-
             const rulePartType = RulePartType[<RulePartTypeStrings>ruleType];
 
             switch (rulePartType) {
@@ -221,8 +221,6 @@ export class RecurringEvent {
                     // error
                     throw Error("Invalid Rule Type");
             }
-            //const value = getRulePartValue(rulePartType, ruleValue);
-            //this.rules.add(rulePart);
         });
     }
 
