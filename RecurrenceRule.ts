@@ -51,7 +51,7 @@ type RuleValue = Frequency | Weekday | number | number[] | WeekDayNumber[] | Dat
 // }
 
 
-export class RecurringEvent {
+export class RecurrenceRule {
 
     rules: Map<RulePartType, RuleValue> = new Map<RulePartType, RuleValue>();
     frequency!: Frequency;
@@ -72,15 +72,19 @@ export class RecurringEvent {
     weekStart: Weekday = Weekday.MO;
 
     isValid = true;
+    isDateOnly = false;
     start: Date = new Date();
     last: Date | undefined;
 
-    constructor(recurrenceString: string, start?: string) {
-        this.parseRecurrence(recurrenceString);
-        this.validateRecurrence();
-        
+    constructor(recurString: string, start?: string) {
+        this.parseRecurString(recurString.toUpperCase());
         this.start = start == undefined ? new Date() : new Date(start);
+        // test to see if a time component was included in the date string
+        this.isDateOnly = start != undefined && (start.indexOf('T') > 0 || start.indexOf(' ') > 0)
+        this.validate(recurString);
     }
+
+
 
     // *[Symbol.iterator]() {
 
@@ -103,7 +107,7 @@ export class RecurringEvent {
     //     }
     // }
 
-    private validateRecurrence = (): boolean => {
+    private validate = (recurString: string): boolean => {
         if (this.frequency == undefined) { throw Error("The FREQ rule part is REQUIRED") }
         
         if (this.count != undefined && this.until != undefined) {
@@ -114,29 +118,51 @@ export class RecurringEvent {
             throw Error("The BYDAY rule part MUST NOT be specified with a numeric value when the FREQ rule part is not set to MONTHLY or YEARLY");
         }
 
-        if (this.frequency == Frequency.YEARLY && this.byDay.length > 0 && this.byWeekNo.length > 0) return false;
+        if (this.frequency == Frequency.YEARLY && this.byDay.length > 0 && this.byWeekNo.length > 0) {
+            throw Error("The BYDAY rule part MUST NOT be specified with a numeric value with the FREQ rule part set to YEARLY when the BYWEEKNO rule part is specified");
+        }
         
-        if (this.frequency == Frequency.WEEKLY && this.byMonthDay.length > 0) return false;
+        if (this.frequency == Frequency.WEEKLY && this.byMonthDay.length > 0) {
+            throw Error("The BYMONTHDAY rule part MUST NOT be specified when the FREQ rule part is set to WEEKLY.");
+        } 
 
         if ((this.frequency == Frequency.DAILY || this.frequency == Frequency.WEEKLY || this.frequency == Frequency.MONTHLY) &&
-            this.byYearDay.length > 0) return false;
+            this.byYearDay.length > 0) {
+                throw Error("The BYYEARDAY rule part MUST NOT be specified when the FREQ rule part is set to DAILY, WEEKLY, or MONTHLY.");
+            }            
 
-        if (this.byWeekNo.length > 0 && this.frequency != Frequency.YEARLY) return false;        
-
-        if (this.frequency == undefined) {
-            throw Error("invalid frequency");
+        if (this.byWeekNo.length > 0 && this.frequency != Frequency.YEARLY) {
+            throw Error("This rule part MUST NOT be used when the FREQ rule part is set to anything other than YEARLY.");
         }
+
+        if (this.bySetPos.length > 0 && recurString.match(/BY/g)!.length < 2) {
+            throw Error("BYSETPOS MUST only be used in conjunction with another BYxxx rule part.");
+        }
+        
         return true;
     }
 
-    parseRecurrence = (recurrenceRule: string): void => {
+    parseRecurString = (recurString: string): void => {
 
-        const ruleParts = recurrenceRule.split(';');
-        ruleParts.map(rp => {
+        // SPEC: To ensure backward compatibility with applications that pre-date this revision of
+        //    iCalendar the FREQ rule part MUST be the first rule part specified in a RECUR value.
+        if (!recurString.startsWith("FREQ")) {
+            throw Error("The FREQ rule part MUST be the first rule part specified");
+        }
+
+        // SPEC: Individual rule parts MUST only be specified once.
+        const ruleMap = new Map<RulePartType, string>();
+        recurString.split(';').forEach(rp => {
             const [ruleType, ruleValue] = rp.split("=");
             const rulePartType = RulePartType[<RulePartTypeStrings>ruleType];
+            if (ruleMap.has(rulePartType)) { 
+                throw Error("Individual rule parts MUST only be specified once."); 
+            }
+            ruleMap.set(rulePartType, ruleValue);
+        })
 
-            switch (rulePartType) {
+        for (const [rulePart, ruleValue] of ruleMap) {
+            switch (rulePart) {
                 case RulePartType.FREQ:
                     this.frequency = Frequency[<keyof typeof Frequency>ruleValue];
                     break;
@@ -151,21 +177,21 @@ export class RecurringEvent {
                     break;
                 case RulePartType.BYSECOND:
                     this.bySecond = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < 0 || num > 60) throw Error("Invalid byseclist");
                         return num;
                     });
                     break;
                 case RulePartType.BYMINUTE:
                     this.byMinute = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < 0 || num > 59) throw Error("Invalid byminlist");
                         return num;
                     });
                     break;
                 case RulePartType.BYHOUR:
                     this.byHour = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < 0 || num > 23) throw Error("Invalid byhrlist");
                         return num;
                     });
@@ -174,47 +200,45 @@ export class RecurringEvent {
                     // more complex....
                     console.log(ruleValue);
                     this.byDay = ruleValue.split(',').map(v => {
-                        let num = Number(v.slice(0, -2));
-                        let day = Weekday[<keyof typeof Weekday>v.slice(-2)];
+                        const num = Number(v.slice(0, -2));
                         if (num < -53 || num > 53) throw Error("Invalid bywdaylist");
-                        
                         return {
                             ordinalWeek: num,
-                            weekday: day
+                            weekday: Weekday[<keyof typeof Weekday>v.slice(-2)]
                         };
                     });
                     break;
                 case RulePartType.BYMONTHDAY:
                     this.byMonthDay = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < -31 || num == 0 || num > 31) throw Error("Invalid bymodaylist");
                         return num;
                     });
                     break;
                 case RulePartType.BYYEARDAY:
                     this.byYearDay = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < -366 || num == 0 || num > 366) throw Error("Invalid byyrdaylist");
                         return num;
                     });
                     break;
                 case RulePartType.BYWEEKNO:
                     this.byWeekNo = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < -53 || num == 0 || num > 53) throw Error("Invalid bywknolist");
                         return num;
                     });
                     break;
                 case RulePartType.BYMONTH:
                     this.byMonth = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < -12 || num == 0 || num > 12) throw Error("Invalid bymolist");
                         return num;
                     });
                     break;
                 case RulePartType.BYSETPOS:
                     this.bySetPos = ruleValue.split(',').map(v => {
-                        let num = Number(v);
+                        const num = Number(v);
                         if (num < -366 || num == 0 || num > 366) throw Error("Invalid bysplist");
                         return num;
                     });
@@ -226,21 +250,21 @@ export class RecurringEvent {
                     // error
                     throw Error("Invalid Rule Type");
             }
-        });
+        }
     }
 
 
     private getWeekNumber(inputDate:Date): number {
-        let d = new Date(inputDate);
+        const d = new Date(inputDate);
         d.setUTCHours(0,0,0,0);
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        let yearStart = new Date(d.getUTCFullYear());
+        const yearStart = new Date(d.getUTCFullYear());
         return Math.ceil((((d.valueOf() - yearStart.valueOf()) / 86400000) + 1) / 7)
     }
 
-    private getDaysFromWeekNo(weekNumber: number, targetEvent: Date, startOfWeek: number = 1) {
+    private getDaysFromWeekNo(weekNumber: number, targetEvent: Date, startOfWeek = 1) {
         
-        let firstDay = new Date(targetEvent);
+        const firstDay = new Date(targetEvent);
         firstDay.setUTCMonth(0);
         firstDay.setUTCDate(1);
 
@@ -257,7 +281,7 @@ export class RecurringEvent {
         firstDay.setUTCDate(firstDay.getUTCDate() + (7 * (weekNumber-1)));
         console.log("Our Week STart: ", firstDay);
 
-        let days = [];
+        const days = [];
         for (let i=0; i < 7; i++) {
             days.push(new Date(firstDay));
             firstDay.setUTCDate(firstDay.getUTCDate()+1);
@@ -277,9 +301,9 @@ export class RecurringEvent {
 
     private getMonthDays(fromDate: Date, dayOfMonth: number): Date[] {
         
-        let monthDays = [];
+        const monthDays = [];
         for (let i=0; i < 12; i++) {
-            let eventDate = new Date();
+            const eventDate = new Date();
             eventDate.setUTCFullYear(fromDate.getUTCFullYear());
             eventDate.setUTCMonth(fromDate.getUTCMonth());
             eventDate.setUTCDate(dayOfMonth);
@@ -323,12 +347,12 @@ export class RecurringEvent {
     }
 
 
-    private getEventsByFrequency(frequency: Frequency, startTime: Date): Date[] {
+    // private getEventsByFrequency(frequency: Frequency, startTime: Date): Date[] {
 
-        const results = this.processEventSet(startTime, frequency).filter(r => r >= this.start);
-        //console.log("EventSet: ", results);
-        return results;
-    }
+    //     const results = this.processEventSet(startTime, frequency).filter(r => r >= this.start);
+    //     //console.log("EventSet: ", results);
+    //     return results;
+    // }
 
     private getNextIntervalTime(frequency: Frequency, currentTime: Date): Date {
 
@@ -366,8 +390,7 @@ export class RecurringEvent {
         let currentTime = this.start;
         let eventCount = 0;
         while (this.until == undefined || currentTime > this.until) {
-            console.log("CurrentTime: ", currentTime);
-            const eventSet = this.getEventsByFrequency(this.frequency, currentTime);
+            const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
             for (const evt of eventSet) {
                 yield evt;
@@ -379,13 +402,6 @@ export class RecurringEvent {
         }
     }
 
-    private uniqueBy(a:any, key:any) {
-        let seen = new Set();
-        return a.filter((item:any) => {
-            let k = key(item);
-            return seen.has(k) ? false : seen.add(k);
-        });
-    }
 
     private filterOnDaysOfWeek(events:Set<number>): number[] {
 
@@ -539,7 +555,7 @@ export class RecurringEvent {
         return bySecondResults;
     }
 
-    private processEventSet(sourceEvent: Date, freq: Frequency): Date[] {
+    private getEventSet(sourceEvent: Date, freq: Frequency): Date[] {
 
         let resultEventSet = new Set<number>();
         resultEventSet.add(sourceEvent.valueOf());
@@ -560,18 +576,25 @@ export class RecurringEvent {
         // BYDAY
         resultEventSet = this.getByDayEvents(freq, sourceEvent, resultEventSet);
 
-        // BYHOUR
-        resultEventSet = this.getByHourEvents(resultEventSet);
-        //console.log(resultEventSet);
 
-        // BYMINUTE
-        resultEventSet = this.getByMinuteEvents(resultEventSet);
-        //console.log(resultEventSet);
+        // SPEC: The BYSECOND, BYMINUTE and BYHOUR rule parts MUST NOT be specified when the associated 
+        //     "DTSTART" property has a DATE value type. These rule parts MUST be ignored in RECUR value
+        //     that violate the above requirement (e.g., generated by applications that pre-date this 
+        //     revision of iCalendar).
+        if (!this.isDateOnly) {
 
-        // BYSECOND
-        resultEventSet = this.getBySecondEvents(resultEventSet);
+            // BYHOUR
+            resultEventSet = this.getByHourEvents(resultEventSet);
+            //console.log(resultEventSet);
 
-        //console.log("C:", resultEventSet);
+            // BYMINUTE
+            resultEventSet = this.getByMinuteEvents(resultEventSet);
+            //console.log(resultEventSet);
+
+            // BYSECOND
+            resultEventSet = this.getBySecondEvents(resultEventSet);
+        }
+
         // BYSETPOS
         // for each set of events generated,
         // order them, then pick the events listed by the SETPOS list
