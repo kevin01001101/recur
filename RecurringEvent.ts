@@ -75,16 +75,11 @@ export class RecurringEvent {
     start: Date = new Date();
     last: Date | undefined;
 
-    constructor(recurrenceString: string, start?: Date, end?: Date) {
-        //try {
+    constructor(recurrenceString: string, start?: string) {
         this.parseRecurrence(recurrenceString);
         this.validateRecurrence();
-        // } catch (e) {
-        //     console.error(e);
-        //     this.isValid = false;
-        // }
         
-        if (start != undefined) this.start = start;
+        this.start = start == undefined ? new Date() : new Date(start);
     }
 
     // *[Symbol.iterator]() {
@@ -109,9 +104,16 @@ export class RecurringEvent {
     // }
 
     private validateRecurrence = (): boolean => {
-        if (this.frequency == undefined) { throw Error("The FREQ rule part is REQUIRED") }        
+        if (this.frequency == undefined) { throw Error("The FREQ rule part is REQUIRED") }
+        
+        if (this.count != undefined && this.until != undefined) {
+            throw Error("UNTIL and COUNT MUST NOT occurr in the same recurrence");
+        }      
 
-        if (this.frequency != Frequency.YEARLY && this.frequency != Frequency.MONTHLY && this.byDay.some(d => d.ordinalWeek != 0)) return false;
+        if (this.frequency != Frequency.YEARLY && this.frequency != Frequency.MONTHLY && this.byDay.some(d => d.ordinalWeek != 0)) {
+            throw Error("The BYDAY rule part MUST NOT be specified with a numeric value when the FREQ rule part is not set to MONTHLY or YEARLY");
+        }
+
         if (this.frequency == Frequency.YEARLY && this.byDay.length > 0 && this.byWeekNo.length > 0) return false;
         
         if (this.frequency == Frequency.WEEKLY && this.byMonthDay.length > 0) return false;
@@ -121,6 +123,9 @@ export class RecurringEvent {
 
         if (this.byWeekNo.length > 0 && this.frequency != Frequency.YEARLY) return false;        
 
+        if (this.frequency == undefined) {
+            throw Error("invalid frequency");
+        }
         return true;
     }
 
@@ -227,35 +232,35 @@ export class RecurringEvent {
 
     private getWeekNumber(inputDate:Date): number {
         let d = new Date(inputDate);
-        d.setHours(0,0,0,0);
-        d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-        let yearStart = new Date(d.getFullYear());
+        d.setUTCHours(0,0,0,0);
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        let yearStart = new Date(d.getUTCFullYear());
         return Math.ceil((((d.valueOf() - yearStart.valueOf()) / 86400000) + 1) / 7)
     }
 
     private getDaysFromWeekNo(weekNumber: number, targetEvent: Date, startOfWeek: number = 1) {
         
         let firstDay = new Date(targetEvent);
-        firstDay.setMonth(0);
-        firstDay.setDate(1);
+        firstDay.setUTCMonth(0);
+        firstDay.setUTCDate(1);
 
         if (weekNumber < 0) { 
-            firstDay.setFullYear(firstDay.getFullYear()+1);
+            firstDay.setUTCFullYear(firstDay.getUTCFullYear()+1);
             weekNumber++;
         }
 
-        const dayOfWeek = firstDay.getDay();
+        const dayOfWeek = firstDay.getUTCDay();
         if ((dayOfWeek + 2 + startOfWeek) % 7 < 3) {
-            firstDay.setDate(firstDay.getDate() + 7);
+            firstDay.setUTCDate(firstDay.getUTCDate() + 7);
         }
-        firstDay.setDate(firstDay.getDate() - (dayOfWeek - startOfWeek));
-        firstDay.setDate(firstDay.getDate() + (7 * (weekNumber-1)));
+        firstDay.setUTCDate(firstDay.getUTCDate() - (dayOfWeek - startOfWeek));
+        firstDay.setUTCDate(firstDay.getUTCDate() + (7 * (weekNumber-1)));
         console.log("Our Week STart: ", firstDay);
 
         let days = [];
         for (let i=0; i < 7; i++) {
             days.push(new Date(firstDay));
-            firstDay.setDate(firstDay.getDate()+1);
+            firstDay.setUTCDate(firstDay.getUTCDate()+1);
         }
         return days;
     }
@@ -263,9 +268,9 @@ export class RecurringEvent {
 
     private getYearDay(yearDate: Date, dayOfYear: number): Date {
         const eventDate = new Date();
-        eventDate.setFullYear(yearDate.getFullYear());
-        eventDate.setMonth(0);
-        eventDate.setDate(dayOfYear);
+        eventDate.setUTCFullYear(yearDate.getUTCFullYear());
+        eventDate.setUTCMonth(0);
+        eventDate.setUTCDate(dayOfYear);
         //console.log("days: " + dayOfYear + " date is: " + eventDate);
         return eventDate;
     }
@@ -275,9 +280,9 @@ export class RecurringEvent {
         let monthDays = [];
         for (let i=0; i < 12; i++) {
             let eventDate = new Date();
-            eventDate.setFullYear(fromDate.getFullYear());
-            eventDate.setMonth(fromDate.getMonth());
-            eventDate.setDate(dayOfMonth);
+            eventDate.setUTCFullYear(fromDate.getUTCFullYear());
+            eventDate.setUTCMonth(fromDate.getUTCMonth());
+            eventDate.setUTCDate(dayOfMonth);
             monthDays.push(eventDate);
         }
         return monthDays;
@@ -290,12 +295,12 @@ export class RecurringEvent {
         
         const resultDays = [];
         const currentDate = new Date(sourceDate);
-        const targetMonth = currentDate.getMonth();
-        currentDate.setDate(1);
+        const targetMonth = currentDate.getUTCMonth();
+        currentDate.setUTCDate(1);
 
-        while (currentDate.getMonth() == targetMonth) {  
-            if (days.includes(currentDate.getDay())) resultDays.push(currentDate.valueOf());
-            currentDate.setDate(currentDate.getDate()+1);
+        while (currentDate.getUTCMonth() == targetMonth) {  
+            if (days.includes(currentDate.getUTCDay())) resultDays.push(currentDate.valueOf());
+            currentDate.setUTCDate(currentDate.getUTCDate()+1);
         }
         return resultDays;
     }
@@ -306,13 +311,13 @@ export class RecurringEvent {
         const sourceDate = new Date(targetYear, 0, 1);
         let currentDate = new Date(sourceDate);
         let dayOfYear = 1;
-        currentDate.setDate(dayOfYear++);
+        currentDate.setUTCDate(dayOfYear++);
 
-        while (currentDate.getFullYear() == targetYear) {  
-            if (days.includes(currentDate.getDay())) resultDays.push(currentDate.valueOf());
+        while (currentDate.getUTCFullYear() == targetYear) {  
+            if (days.includes(currentDate.getUTCDay())) resultDays.push(currentDate.valueOf());
 
             currentDate = new Date(sourceDate);
-            currentDate.setDate(dayOfYear++);
+            currentDate.setUTCDate(dayOfYear++);
         }
         return resultDays;
     }
@@ -321,7 +326,7 @@ export class RecurringEvent {
     private getEventsByFrequency(frequency: Frequency, startTime: Date): Date[] {
 
         const results = this.processEventSet(startTime, frequency).filter(r => r >= this.start);
-        console.log("EventSet: ", results);
+        //console.log("EventSet: ", results);
         return results;
     }
 
@@ -330,25 +335,25 @@ export class RecurringEvent {
         const nextTime = new Date(currentTime);
         switch (frequency) {
             case Frequency.SECONDLY:
-                nextTime.setSeconds(nextTime.getSeconds() + this.interval);
+                nextTime.setUTCSeconds(nextTime.getUTCSeconds() + this.interval);
                 return nextTime;
             case Frequency.MINUTELY:
-                nextTime.setMinutes(nextTime.getMinutes() + this.interval);
+                nextTime.setUTCMinutes(nextTime.getUTCMinutes() + this.interval);
                 return nextTime;
             case Frequency.HOURLY:
-                nextTime.setHours(nextTime.getHours() + this.interval);
+                nextTime.setUTCHours(nextTime.getUTCHours() + this.interval);
                 return nextTime;
             case Frequency.DAILY:
-                nextTime.setDate(nextTime.getDate() + this.interval);
+                nextTime.setUTCDate(nextTime.getUTCDate() + this.interval);
                 return nextTime;
             case Frequency.WEEKLY:
-                nextTime.setDate(nextTime.getDate() + 7 * this.interval);
+                nextTime.setUTCDate(nextTime.getUTCDate() + 7 * this.interval);
                 return nextTime;
             case Frequency.MONTHLY:
-                nextTime.setMonth(nextTime.getMonth() + this.interval);
+                nextTime.setUTCMonth(nextTime.getUTCMonth() + this.interval);
                 return nextTime;
             case Frequency.YEARLY:
-                nextTime.setFullYear(nextTime.getFullYear() + this.interval);
+                nextTime.setUTCFullYear(nextTime.getUTCFullYear() + this.interval);
                 return nextTime;
         }
     }
@@ -361,7 +366,7 @@ export class RecurringEvent {
         let currentTime = this.start;
         let eventCount = 0;
         while (this.until == undefined || currentTime > this.until) {
-
+            console.log("CurrentTime: ", currentTime);
             const eventSet = this.getEventsByFrequency(this.frequency, currentTime);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
             for (const evt of eventSet) {
@@ -388,10 +393,9 @@ export class RecurringEvent {
         // console.log("this.byDay: ", daysArray);
         // console.log("events: ", events);
         return [...events].filter(evt => {
-            return daysArray.includes(new Date(evt).getDay());
+            return daysArray.includes(new Date(evt).getUTCDay());
         });
     }
-
 
 
     private getByMonthEvents(sourceEvent: Date, events: Set<number>): Set<number> {
@@ -401,10 +405,10 @@ export class RecurringEvent {
         if (this.frequency == Frequency.YEARLY) {
             const currentDate = new Date(sourceEvent);
             this.byMonth.forEach(m => {
-                currentDate.setMonth(m-1);
+                currentDate.setUTCMonth(m-1);
                 results.add(currentDate.valueOf());
             });
-        } else if (this.byMonth.includes(sourceEvent.getMonth())) {
+        } else if (this.byMonth.includes(sourceEvent.getUTCMonth()+1)) {
             results.add(sourceEvent.valueOf());
         }
 
@@ -470,7 +474,7 @@ export class RecurringEvent {
 
             } else {
                 // special expand for yearly                
-                const daysByYear = this.getDaysOfWeekInYear(sourceEvent.getFullYear(), this.byDay.map(day => day.weekday));
+                const daysByYear = this.getDaysOfWeekInYear(sourceEvent.getUTCFullYear(), this.byDay.map(day => day.weekday));
                 daysByYear.forEach(d => results.add(d));
             }
     
@@ -491,6 +495,7 @@ export class RecurringEvent {
 
         return results;
     }
+
     
     private getByHourEvents(events:Set<number>): Set<number> {
         if (this.byHour.length == 0) return events;
@@ -499,7 +504,7 @@ export class RecurringEvent {
         events.forEach(e => {
             this.byHour.forEach(h => {
                 const hourEvent = new Date(e);
-                hourEvent.setHours(h);
+                hourEvent.setUTCHours(h);
                 byHourResults.add(hourEvent.valueOf());
             });
         });        
@@ -513,7 +518,7 @@ export class RecurringEvent {
         events.forEach(e => {
             this.byMinute.forEach(m => {
                 const minuteEvent = new Date(e);
-                minuteEvent.setMinutes(m);
+                minuteEvent.setUTCMinutes(m);
                 byMinuteResults.add(minuteEvent.valueOf());
             });
         });
@@ -527,7 +532,7 @@ export class RecurringEvent {
         events.forEach(e => {            
             this.bySecond.forEach(m => {
                 const minuteEvent = new Date(e);
-                minuteEvent.setSeconds(m);
+                minuteEvent.setUTCSeconds(m);
                 bySecondResults.add(minuteEvent.valueOf());
             });
         });
