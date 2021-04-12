@@ -168,6 +168,9 @@ export class RecurrenceRule {
                     break;
                 case RulePartType.UNTIL:
                     this.until = new Date(Date.parse(ruleValue));
+                    if (this.until.getTime() !== this.until.getTime()) {
+                        throw Error("UNTIL rule part is invalid.");
+                    }
                     break;
                 case RulePartType.COUNT:
                     this.count = Number(ruleValue);
@@ -393,7 +396,6 @@ export class RecurrenceRule {
 
         let currentTime = this.start;
         let eventCount = 0;
-        console.log("UNTILlastEventYielded:", this.until);
         while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
             //console.log("EVENT SET: ", eventSet);
@@ -501,7 +503,7 @@ export class RecurrenceRule {
                 // special expand for monthly
 
                 const days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));  
-                console.log("Days of week in month: ", days.map(d => new Date(d)));                  
+                // console.log("Days of week in month: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));                
 
             } else {
