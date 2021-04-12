@@ -389,7 +389,8 @@ export class RecurrenceRule {
 
         let currentTime = this.start;
         let eventCount = 0;
-        while (this.until == undefined || currentTime > this.until) {
+        console.log("UNTIL:", this.until);
+        while (this.until == undefined || currentTime < this.until) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
             for (const evt of eventSet) {
@@ -575,7 +576,6 @@ export class RecurrenceRule {
 
         // BYDAY
         resultEventSet = this.getByDayEvents(freq, sourceEvent, resultEventSet);
-
 
         // SPEC: The BYSECOND, BYMINUTE and BYHOUR rule parts MUST NOT be specified when the associated 
         //     "DTSTART" property has a DATE value type. These rule parts MUST be ignored in RECUR value
