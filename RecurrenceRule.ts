@@ -315,17 +315,21 @@ export class RecurrenceRule {
     /*
         Get all specified days of week for the month of the given Date
     */
-    private getDaysOfWeekInMonth(sourceDate: Date, days: number[]): number[] {
+    private getDaysOfWeekInMonth(sourceEvents: Set<number>, days: number[]): number[] {
         
-        const resultDays = [];
-        const currentDate = new Date(sourceDate);
-        const targetMonth = currentDate.getUTCMonth();
-        currentDate.setUTCDate(1);
+        const resultDays: number[] = [];
 
-        while (currentDate.getUTCMonth() == targetMonth) {  
-            if (days.includes(currentDate.getUTCDay())) resultDays.push(currentDate.valueOf());
-            currentDate.setUTCDate(currentDate.getUTCDate()+1);
-        }
+        sourceEvents.forEach(sourceEvt => {
+            const currentDate = new Date(sourceEvt);
+            const targetMonth = currentDate.getUTCMonth();
+            currentDate.setUTCDate(1);
+
+            while (currentDate.getUTCMonth() == targetMonth) {  
+                if (days.includes(currentDate.getUTCDay())) resultDays.push(currentDate.valueOf());
+                currentDate.setUTCDate(currentDate.getUTCDate()+1);
+            }
+        });
+
         return resultDays;
     }
 
@@ -389,11 +393,16 @@ export class RecurrenceRule {
 
         let currentTime = this.start;
         let eventCount = 0;
-        console.log("UNTIL:", this.until);
-        while (this.until == undefined || currentTime < this.until) {
+        console.log("UNTILlastEventYielded:", this.until);
+        while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
+            //console.log("EVENT SET: ", eventSet);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
             for (const evt of eventSet) {
+                if (this.until != undefined && evt > this.until) {
+                    console.log("END: " + evt + " and until: " + this.until);
+                    return;
+                }
                 yield evt;
                 eventCount++;
                 if (eventCount == this.count) {
@@ -416,6 +425,9 @@ export class RecurrenceRule {
 
 
     private getByMonthEvents(sourceEvent: Date, events: Set<number>): Set<number> {
+        // console.log("SourceEvent: ", sourceEvent);
+        // console.log("events: ", events);
+        // console.log("this by month ", this.byMonth);
         if (this.byMonth.length == 0) return events;
 
         const results = new Set<number>();
@@ -423,6 +435,7 @@ export class RecurrenceRule {
             const currentDate = new Date(sourceEvent);
             this.byMonth.forEach(m => {
                 currentDate.setUTCMonth(m-1);
+                // console.log("BYMONTH: ", currentDate);
                 results.add(currentDate.valueOf());
             });
         } else if (this.byMonth.includes(sourceEvent.getUTCMonth()+1)) {
@@ -485,8 +498,10 @@ export class RecurrenceRule {
                 // NOT YET IMPLEMENTED
 
             } else if (this.byMonth.length > 0) { 
-                // special expand for monthly                
-                const days = this.getDaysOfWeekInMonth(sourceEvent, this.byDay.map(day => day.weekday));                    
+                // special expand for monthly
+
+                const days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));  
+                console.log("Days of week in month: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));                
 
             } else {
@@ -501,7 +516,7 @@ export class RecurrenceRule {
                 this.filterOnDaysOfWeek(events).forEach(r => results.add(r));                
             } else {
                 // special expand
-                const days = this.getDaysOfWeekInMonth(sourceEvent, this.byDay.map(day => day.weekday));
+                const days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
                 days.forEach(d => results.add(d));
             }
 
