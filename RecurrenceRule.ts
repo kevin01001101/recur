@@ -398,7 +398,7 @@ export class RecurrenceRule {
         let eventCount = 0;
         while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
-            //console.log("EVENT SET: ", eventSet);
+            if (eventSet.length > 0) console.log("EVENT SET: ", eventSet);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
             for (const evt of eventSet) {
                 if (this.until != undefined && evt > this.until) {
@@ -418,13 +418,29 @@ export class RecurrenceRule {
     private filterOnDaysOfWeek(events:Set<number>): number[] {
 
         const daysArray = this.byDay.map(day => day.weekday);
-        // console.log("this.byDay: ", daysArray);
-        // console.log("events: ", events);
+         console.log("this.byDay: ", daysArray);
+         console.log("events: ", events);
         return [...events].filter(evt => {
             return daysArray.includes(new Date(evt).getUTCDay());
         });
     }
 
+    private expandByDaysOfWeek(events:Set<number>): number[] {
+
+        const results:number[] = [];
+        const daysArray = this.byDay.map(day => day.weekday);
+        // console.log("this.byDay: ", daysArray);
+        // events.forEach(e => console.log("EVT: ", new Date(e)));
+        [...events].forEach(evt => {
+            daysArray.forEach(d => {
+                const expandedDate = new Date(evt);
+                expandedDate.setUTCDate(expandedDate.getUTCDate() + (this.weekStart.valueOf() + d - expandedDate.getUTCDay()));
+                // console.log("DATE:", expandedDate);
+                results.push(expandedDate.valueOf());
+            });
+        });
+        return results;
+    }
 
     private getByMonthEvents(sourceEvent: Date, events: Set<number>): Set<number> {
         // console.log("SourceEvent: ", sourceEvent);
@@ -521,10 +537,13 @@ export class RecurrenceRule {
                 const days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
                 days.forEach(d => results.add(d));
             }
-
+        } else if (freq == Frequency.WEEKLY) {
+            this.expandByDaysOfWeek(events).forEach(r => results.add(r));
+            console.log("Results after week: ", results);
         } else {
             // limit
             this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
+
         }
 
         return results;
