@@ -503,6 +503,23 @@ export class RecurrenceRule {
         return monthDayEvents;
     }
 
+    private filterByWeeks(days:number[], weeks:WeekDayNumber[]): number[] {
+        let filteredDays = days;
+        const validWeeks = weeks.map(w => w.ordinalWeek).reduce((acc, cur): number[] => {
+            if (cur != undefined) { 
+                acc.push(cur);
+            }
+            return acc;
+        }, [] as number[]);
+        if (validWeeks.length > 0) { 
+            filteredDays = validWeeks.map(week => {
+                if (week > 0) return days[week-1];
+                return days[days.length+week];
+            }); 
+        }
+        return filteredDays;
+    }
+
     private getByDayEvents(freq: Frequency, sourceEvent: Date, events:Set<number>): Set<number> {
         if (this.byDay.length == 0) return events;
 
@@ -518,13 +535,7 @@ export class RecurrenceRule {
             } else if (this.byMonth.length > 0) { 
                 // special expand for monthly
                 let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
-                const weeks = this.byDay.map(day => day.ordinalWeek).reduce((acc, cur): number[] => {
-                    if (cur != undefined) { 
-                        acc.push(cur);
-                    }
-                    return acc;
-                }, [] as number[]);
-                if (weeks.length > 0) { days = weeks.map(week => days[week-1]); }
+                days = this.filterByWeeks(days, this.byDay);
                 console.log("Returing these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));                
 
@@ -541,13 +552,7 @@ export class RecurrenceRule {
             } else {
                 // special expand
                 let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
-                const weeks = this.byDay.map(day => day.ordinalWeek).reduce((acc, cur): number[] => {
-                    if (cur != undefined) { 
-                        acc.push(cur);
-                    }
-                    return acc;
-                }, [] as number[]);
-                if (weeks.length > 0) { days = weeks.map(week => days[week-1]); }
+                days = this.filterByWeeks(days, this.byDay);
                 console.log("Returing these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));
             }

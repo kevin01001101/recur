@@ -165,106 +165,130 @@ const ONE_DAY = 24 * 3600 * 1000;
 //     }
 // );
 
-Deno.test("Weekly on Tuesday and Thursday for five weeks",
-    () => {   
-        const re = new RecurrenceRule("FREQ=WEEKLY;UNTIL=1997-10-07Z;WKST=SU;BYDAY=TU,TH", start);
-        const dateGenerator = re.GenerateDate();
+// Deno.test("Weekly on Tuesday and Thursday for five weeks",
+//     () => {   
+//         const re = new RecurrenceRule("FREQ=WEEKLY;UNTIL=1997-10-07Z;WKST=SU;BYDAY=TU,TH", start);
+//         const dateGenerator = re.GenerateDate();
         
-        let previousDate:Date = dateGenerator.next().value;
-        let count = 1;
-        for (const eventDate of dateGenerator) {
-            assertArrayIncludes([2,4], [eventDate.getDay()], "Date is not Tuesday or Thursday");
-            previousDate = eventDate;
-            count++;
-        }
-        console.log("previousDate: ", previousDate);
-        assertEquals(previousDate.valueOf(), (new Date("1997-10-02T09:00:00-04:00")).valueOf(), "Last events don't match.");
-        assertEquals(count, 10, "Expected event counts don't match.");  
-    }
-);
+//         let previousDate:Date = dateGenerator.next().value;
+//         let count = 1;
+//         for (const eventDate of dateGenerator) {
+//             assertArrayIncludes([2,4], [eventDate.getDay()], "Date is not Tuesday or Thursday");
+//             previousDate = eventDate;
+//             count++;
+//         }
+//         console.log("previousDate: ", previousDate);
+//         assertEquals(previousDate.valueOf(), (new Date("1997-10-02T09:00:00-04:00")).valueOf(), "Last events don't match.");
+//         assertEquals(count, 10, "Expected event counts don't match.");  
+//     }
+// );
 
-Deno.test("Weekly on Tuesday and Thursday for five weeks (Alternate)",
-    () => {   
-        const re = new RecurrenceRule("FREQ=WEEKLY;COUNT=10;WKST=SU;BYDAY=TU,TH", start);
-        const dateGenerator = re.GenerateDate();
+// Deno.test("Weekly on Tuesday and Thursday for five weeks (Alternate)",
+//     () => {   
+//         const re = new RecurrenceRule("FREQ=WEEKLY;COUNT=10;WKST=SU;BYDAY=TU,TH", start);
+//         const dateGenerator = re.GenerateDate();
         
-        let previousDate:Date = dateGenerator.next().value;
-        let count = 1;
-        for (const eventDate of dateGenerator) {
-            assertArrayIncludes([2,4], [eventDate.getDay()], "Date is not Tuesday or Thursday");
-            previousDate = eventDate;
-            count++;
-        }
-        console.log("previousDate: ", previousDate);
-        assertEquals(previousDate.valueOf(), (new Date("1997-10-02T09:00:00-04:00")).valueOf(), "Last events don't match.");
-        assertEquals(count, 10, "Expected event counts don't match.");  
-    }
-);
+//         let previousDate:Date = dateGenerator.next().value;
+//         let count = 1;
+//         for (const eventDate of dateGenerator) {
+//             assertArrayIncludes([2,4], [eventDate.getDay()], "Date is not Tuesday or Thursday");
+//             previousDate = eventDate;
+//             count++;
+//         }
+//         console.log("previousDate: ", previousDate);
+//         assertEquals(previousDate.valueOf(), (new Date("1997-10-02T09:00:00-04:00")).valueOf(), "Last events don't match.");
+//         assertEquals(count, 10, "Expected event counts don't match.");  
+//     }
+// );
 
-Deno.test("Every other week on MWF until Dec 24, 1997, starting on Monday, Sept 1, 1997",
-    () => {   
-        const re = new RecurrenceRule("FREQ=WEEKLY;INTERVAL=2;UNTIL=1997-12-24Z;WKST=SU;BYDAY=MO,WE,FR", "1997-09-01T09:00:00-04:00");
-        const dateGenerator = re.GenerateDate();
+// Deno.test("Every other week on MWF until Dec 24, 1997, starting on Monday, Sept 1, 1997",
+//     () => {   
+//         const re = new RecurrenceRule("FREQ=WEEKLY;INTERVAL=2;UNTIL=1997-12-24Z;WKST=SU;BYDAY=MO,WE,FR", "1997-09-01T09:00:00-04:00");
+//         const dateGenerator = re.GenerateDate();
         
-        let previousDate:Date = dateGenerator.next().value;
-        let count = 1;
-        for (const eventDate of dateGenerator) {
-            assertArrayIncludes([1,3,5], [eventDate.getDay()], "Date is not MWF");
-            console.log("RESULT: ", eventDate.toLocaleString());
-            previousDate = eventDate;
-            count++;
-        }
-        // console.log("previousDate: ", previousDate);
-        // assertEquals(previousDate.valueOf(), (new Date("1997-10-02T09:00:00-04:00")).valueOf(), "Last events don't match.");
-        assertEquals(count, 25, "Expected event counts don't match.");  
-    }
-);
+//         let previousDate:Date = dateGenerator.next().value;
+//         let count = 1;
+//         for (const eventDate of dateGenerator) {
+//             assertArrayIncludes([1,3,5], [eventDate.getDay()], "Date is not MWF");
+//             console.log("RESULT: ", eventDate.toLocaleString());
+//             previousDate = eventDate;
+//             count++;
+//         }
+//         // console.log("previousDate: ", previousDate);
+//         // assertEquals(previousDate.valueOf(), (new Date("1997-10-02T09:00:00-04:00")).valueOf(), "Last events don't match.");
+//         assertEquals(count, 25, "Expected event counts don't match.");  
+//     }
+// );
 
-Deno.test("Every other week on Tu and Th, for 8 occurrences",
-    () => {   
-        const re = new RecurrenceRule("FREQ=WEEKLY;INTERVAL=2;COUNT=8;WKST=SU;BYDAY=TU,TH", start);
-        const dateGenerator = re.GenerateDate();
+// Deno.test("Every other week on Tu and Th, for 8 occurrences",
+//     () => {   
+//         const re = new RecurrenceRule("FREQ=WEEKLY;INTERVAL=2;COUNT=8;WKST=SU;BYDAY=TU,TH", start);
+//         const dateGenerator = re.GenerateDate();
         
-        let previousDate:Date = dateGenerator.next().value;
-        let count = 1;
-        for (const eventDate of dateGenerator) {
-            assertArrayIncludes([2,4], [eventDate.getDay()], "Date is not TuTh");
-            console.log("RESULT: ", eventDate.toLocaleString());
-            previousDate = eventDate;
-            count++;
-        }
-        assertEquals(previousDate.valueOf(), (new Date("1997-10-16T09:00:00-04:00")).valueOf(), "Last events don't match.");
-        assertEquals(count, 8, "Expected event counts don't match.");  
-    }
-);
+//         let previousDate:Date = dateGenerator.next().value;
+//         let count = 1;
+//         for (const eventDate of dateGenerator) {
+//             assertArrayIncludes([2,4], [eventDate.getDay()], "Date is not TuTh");
+//             console.log("RESULT: ", eventDate.toLocaleString());
+//             previousDate = eventDate;
+//             count++;
+//         }
+//         assertEquals(previousDate.valueOf(), (new Date("1997-10-16T09:00:00-04:00")).valueOf(), "Last events don't match.");
+//         assertEquals(count, 8, "Expected event counts don't match.");  
+//     }
+// );
 
-Deno.test("Monthly on the first Friday for 10 occurrences",
-    () => {   
-        const re = new RecurrenceRule("FREQ=MONTHLY;COUNT=10;BYDAY=1FR", start);
-        const dateGenerator = re.GenerateDate();
+// Deno.test("Monthly on the first Friday for 10 occurrences",
+//     () => {   
+//         const re = new RecurrenceRule("FREQ=MONTHLY;COUNT=10;BYDAY=1FR", start);
+//         const dateGenerator = re.GenerateDate();
         
-        let previousDate:Date = dateGenerator.next().value;
-        let count = 1;
-        for (const eventDate of dateGenerator) {
-            assertArrayIncludes([5], [eventDate.getDay()], "Date is not Friday");
-            console.log("RESULT: ", eventDate.toLocaleString());
-            previousDate = eventDate;
-            count++;
-        }
-        assertEquals(previousDate.valueOf(), (new Date("1998-06-05T09:00:00-04:00")).valueOf(), "Last events don't match.");
-        assertEquals(count, 10, "Expected event counts don't match.");  
-    }
-);
+//         let previousDate:Date = dateGenerator.next().value;
+//         let count = 1;
+//         for (const eventDate of dateGenerator) {
+//             assertArrayIncludes([5], [eventDate.getDay()], "Date is not Friday");
+//             console.log("RESULT: ", eventDate.toLocaleString());
+//             previousDate = eventDate;
+//             count++;
+//         }
+//         assertEquals(previousDate.valueOf(), (new Date("1998-06-05T09:00:00-04:00")).valueOf(), "Last events don't match.");
+//         assertEquals(count, 10, "Expected event counts don't match.");  
+//     }
+// );
 
-Deno.test("Monthly on the first Friday until December 24, 1997",
-    () => {    
-        assertEquals(true, false);
-    }
-);
+// Deno.test("Monthly on the first Friday until December 24, 1997",
+//     () => {   
+//         const re = new RecurrenceRule("FREQ=MONTHLY;UNTIL=1997-12-24Z;BYDAY=1FR", start);
+//         const dateGenerator = re.GenerateDate();
+        
+//         let previousDate:Date = dateGenerator.next().value;
+//         let count = 1;
+//         for (const eventDate of dateGenerator) {
+//             assertArrayIncludes([5], [eventDate.getDay()], "Date is not Friday");
+//             console.log("RESULT: ", eventDate.toLocaleString());
+//             previousDate = eventDate;
+//             count++;
+//         }
+//         assertEquals(previousDate.valueOf(), (new Date("1997-12-05T09:00:00-04:00")).valueOf(), "Last events don't match.");
+//         assertEquals(count, 4, "Expected event counts don't match.");  
+//     }
+// );
 
 Deno.test("Every other month on the first and last Sunday of the month for 10 occurrences",
-    () => {    
-        assertEquals(true, false);
+    () => {   
+        const re = new RecurrenceRule("FREQ=MONTHLY;INTERVAL=2;COUNT=10;BYDAY=1SU,-1SU", start);
+        const dateGenerator = re.GenerateDate();
+        
+        let previousDate:Date = dateGenerator.next().value;
+        let count = 1;
+        for (const eventDate of dateGenerator) {
+            assertArrayIncludes([0], [eventDate.getDay()], "Date is not Sunday");
+            console.log("RESULT: ", eventDate.toLocaleString());
+            previousDate = eventDate;
+            count++;
+        }
+        assertEquals(previousDate.valueOf(), (new Date("1998-05-31T09:00:00-04:00")).valueOf(), "Last events don't match.");
+        assertEquals(count, 10, "Expected event counts don't match.");  
     }
 );
 
