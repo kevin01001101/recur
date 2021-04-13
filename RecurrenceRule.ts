@@ -517,9 +517,15 @@ export class RecurrenceRule {
 
             } else if (this.byMonth.length > 0) { 
                 // special expand for monthly
-
-                const days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));  
-                // console.log("Days of week in month: ", days.map(d => new Date(d)));                  
+                let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
+                const weeks = this.byDay.map(day => day.ordinalWeek).reduce((acc, cur): number[] => {
+                    if (cur != undefined) { 
+                        acc.push(cur);
+                    }
+                    return acc;
+                }, [] as number[]);
+                if (weeks.length > 0) { days = weeks.map(week => days[week-1]); }
+                console.log("Returing these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));                
 
             } else {
@@ -534,7 +540,15 @@ export class RecurrenceRule {
                 this.filterOnDaysOfWeek(events).forEach(r => results.add(r));                
             } else {
                 // special expand
-                const days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
+                let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
+                const weeks = this.byDay.map(day => day.ordinalWeek).reduce((acc, cur): number[] => {
+                    if (cur != undefined) { 
+                        acc.push(cur);
+                    }
+                    return acc;
+                }, [] as number[]);
+                if (weeks.length > 0) { days = weeks.map(week => days[week-1]); }
+                console.log("Returing these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));
             }
         } else if (freq == Frequency.WEEKLY) {
