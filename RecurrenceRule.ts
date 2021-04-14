@@ -118,7 +118,7 @@ export class RecurrenceRule {
             throw Error("The BYDAY rule part MUST NOT be specified with a numeric value when the FREQ rule part is not set to MONTHLY or YEARLY");
         }
 
-        if (this.frequency == Frequency.YEARLY && this.byDay.length > 0 && this.byWeekNo.length > 0) {
+        if (this.frequency == Frequency.YEARLY && this.byDay.length > 0 && this.byWeekNo.length > 0 && this.byDay.some(d => d.ordinalWeek != 0)) {
             throw Error("The BYDAY rule part MUST NOT be specified with a numeric value with the FREQ rule part set to YEARLY when the BYWEEKNO rule part is specified");
         }
         
@@ -282,7 +282,6 @@ export class RecurrenceRule {
         }
         firstDay.setUTCDate(firstDay.getUTCDate() - (dayOfWeek - startOfWeek));
         firstDay.setUTCDate(firstDay.getUTCDate() + (7 * (weekNumber-1)));
-        console.log("Our Week STart: ", firstDay);
 
         const days = [];
         for (let i=0; i < 7; i++) {
@@ -367,30 +366,34 @@ export class RecurrenceRule {
     //     return results;
     // }
 
-    private getNextIntervalTime(frequency: Frequency, currentTime: Date): Date {
+    private getNextIntervalTime(frequency: Frequency, offset: number): Date {
 
-        const nextTime = new Date(currentTime);
+        const nextTime = new Date(this.start);
         switch (frequency) {
             case Frequency.SECONDLY:
-                nextTime.setUTCSeconds(nextTime.getUTCSeconds() + this.interval);
+                nextTime.setUTCSeconds(nextTime.getUTCSeconds() + (this.interval * offset));
                 return nextTime;
             case Frequency.MINUTELY:
-                nextTime.setUTCMinutes(nextTime.getUTCMinutes() + this.interval);
+                nextTime.setUTCMinutes(nextTime.getUTCMinutes() + (this.interval * offset));
                 return nextTime;
             case Frequency.HOURLY:
-                nextTime.setUTCHours(nextTime.getUTCHours() + this.interval);
+                nextTime.setUTCHours(nextTime.getUTCHours() + (this.interval * offset));
                 return nextTime;
             case Frequency.DAILY:
-                nextTime.setUTCDate(nextTime.getUTCDate() + this.interval);
+                nextTime.setUTCDate(nextTime.getUTCDate() + (this.interval * offset));
                 return nextTime;
             case Frequency.WEEKLY:
-                nextTime.setUTCDate(nextTime.getUTCDate() + 7 * this.interval);
+                nextTime.setUTCDate(nextTime.getUTCDate() + 7 * (this.interval * offset));
                 return nextTime;
             case Frequency.MONTHLY:
-                nextTime.setUTCMonth(nextTime.getUTCMonth() + this.interval);
+                nextTime.setUTCMonth(this.start.getUTCMonth() + (this.interval * offset));
+                if (nextTime.getUTCDate() != this.start.getUTCDate()) {
+                    console.log("Something happened.");
+                    nextTime.setUTCDate(0);
+                }
                 return nextTime;
             case Frequency.YEARLY:
-                nextTime.setUTCFullYear(nextTime.getUTCFullYear() + this.interval);
+                nextTime.setUTCFullYear(this.start.getUTCFullYear() + (this.interval * offset));
                 return nextTime;
         }
     }
@@ -401,11 +404,13 @@ export class RecurrenceRule {
         coreEventSet.add(this.start);
 
         let currentTime = this.start;
+        let offset = 1;
         let eventCount = 0;
         while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
             if (eventSet.length > 0) console.log("EVENT SET: ", eventSet);
-            currentTime = this.getNextIntervalTime(this.frequency, currentTime);
+            currentTime = this.getNextIntervalTime(this.frequency, offset++);
+            console.log("NEXT:", currentTime);
             for (const evt of eventSet) {
                 if (this.until != undefined && evt > this.until) {
                     console.log("END: " + evt + " and until: " + this.until);
@@ -424,8 +429,8 @@ export class RecurrenceRule {
     private filterOnDaysOfWeek(events:Set<number>): number[] {
 
         const daysArray = this.byDay.map(day => day.weekday);
-         console.log("this.byDay: ", daysArray);
-         console.log("events: ", events);
+        //  console.log("this.byDay: ", daysArray);
+        //  console.log("events: ", events);
         return [...events].filter(evt => {
             return daysArray.includes(new Date(evt).getUTCDay());
         });
@@ -535,8 +540,8 @@ export class RecurrenceRule {
                 // limit
                 this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
             } else if (this.byWeekNo.length > 0) {
-                console.log("by week no");
-                // NOT YET IMPLEMENTED
+                // already have the full week, filter by the days
+                this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
 
             } else if (this.byMonth.length > 0) { 
                 // special expand for monthly
