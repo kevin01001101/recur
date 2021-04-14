@@ -306,10 +306,15 @@ export class RecurrenceRule {
         
         const monthDays = [];
         for (let i=0; i < 12; i++) {
-            const eventDate = new Date();
-            eventDate.setUTCFullYear(fromDate.getUTCFullYear());
-            eventDate.setUTCMonth(fromDate.getUTCMonth());
-            eventDate.setUTCDate(dayOfMonth);
+            const eventDate = new Date(fromDate);
+            //eventDate.setUTCFullYear(fromDate.getUTCFullYear());
+            if (dayOfMonth > 0) {
+                //eventDate.setUTCMonth(fromDate.getUTCMonth());
+                eventDate.setUTCDate(dayOfMonth);
+            } else {
+                //eventDate.setUTCMonth(fromDate.getUTCMonth()+1);
+                eventDate.setUTCDate(dayOfMonth+1);
+            }
             monthDays.push(eventDate);
         }
         return monthDays;
@@ -548,7 +553,7 @@ export class RecurrenceRule {
         } else if (freq == Frequency.MONTHLY) {
             if (this.byMonthDay.length > 0) {
                 // limit
-                this.filterOnDaysOfWeek(events).forEach(r => results.add(r));                
+                this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
             } else {
                 // special expand
                 let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));

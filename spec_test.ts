@@ -293,14 +293,39 @@ Deno.test("Every other month on the first and last Sunday of the month for 10 oc
 );
 
 Deno.test("Monthly on the second-to-last Monday of the month for 6 months",
-    () => {    
-        assertEquals(true, false);
+    () => {   
+        const re = new RecurrenceRule("FREQ=MONTHLY;COUNT=6;BYDAY=-2MO", start);
+        const dateGenerator = re.GenerateDate();
+        
+        let previousDate:Date = dateGenerator.next().value;
+        let count = 1;
+        for (const eventDate of dateGenerator) {
+            assertArrayIncludes([1], [eventDate.getDay()], "Date is not Monday");
+            console.log("RESULT: ", eventDate.toLocaleString());
+            previousDate = eventDate;
+            count++;
+        }
+        assertEquals(previousDate.valueOf(), (new Date("1998-02-16T09:00:00-04:00")).valueOf(), "Last events don't match.");
+        assertEquals(count, 6, "Expected event counts don't match.");  
     }
 );
 
 Deno.test("Monthly on the third-to-the-last day of the month, forever",
-    () => {    
-        assertEquals(true, false);
+    () => {   
+        const re = new RecurrenceRule("FREQ=MONTHLY;BYMONTHDAY=-3", start);
+        const dateGenerator = re.GenerateDate();
+        
+        let previousDate:Date = dateGenerator.next().value;
+        let count = 1;
+        for (const eventDate of dateGenerator) {
+            //assertArrayIncludes([1], [eventDate.getDay()], "Date is not Monday");
+            console.log("RESULT: ", eventDate.toLocaleString());
+            previousDate = eventDate;
+            count++;
+            if (count == 6) break;
+        }
+        assertEquals(previousDate.valueOf(), (new Date("1998-02-26T09:00:00-04:00")).valueOf(), "Last events don't match.");
+        assertEquals(count, 6, "Expected event counts don't match.");  
     }
 );
 
