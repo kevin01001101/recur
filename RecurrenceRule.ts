@@ -511,7 +511,7 @@ export class RecurrenceRule {
     private filterByWeeks(days:number[], weeks:WeekDayNumber[]): number[] {
         let filteredDays = days;
         const validWeeks = weeks.map(w => w.ordinalWeek).reduce((acc, cur): number[] => {
-            if (cur != undefined) { 
+            if (cur != undefined && cur != 0) { 
                 acc.push(cur);
             }
             return acc;
@@ -541,7 +541,6 @@ export class RecurrenceRule {
                 // special expand for monthly
                 let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
                 days = this.filterByWeeks(days, this.byDay);
-                console.log("Returing these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));                
 
             } else {
@@ -558,7 +557,7 @@ export class RecurrenceRule {
                 // special expand
                 let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
                 days = this.filterByWeeks(days, this.byDay);
-                console.log("Returing these days: ", days.map(d => new Date(d)));                  
+                console.log("Returning these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));
             }
         } else if (freq == Frequency.WEEKLY) {
