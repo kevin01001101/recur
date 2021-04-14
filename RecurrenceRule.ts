@@ -340,18 +340,20 @@ export class RecurrenceRule {
         return resultDays;
     }
 
-    private getDaysOfWeekInYear(targetYear: number, days: number[]): number[] {
+    private getDaysOfWeekInYear(sourceDate: Date, days: number[]): number[] {
         const resultDays = [];     
 
-        const sourceDate = new Date(targetYear, 0, 1);
+        const targetYear = sourceDate.getUTCFullYear();
         let currentDate = new Date(sourceDate);
+        currentDate.setUTCMonth(0);
         let dayOfYear = 1;
-        currentDate.setUTCDate(dayOfYear++);
+        currentDate.setUTCDate(dayOfYear);
+        const firstDayOfYear = new Date(currentDate);
 
         while (currentDate.getUTCFullYear() == targetYear) {  
             if (days.includes(currentDate.getUTCDay())) resultDays.push(currentDate.valueOf());
 
-            currentDate = new Date(sourceDate);
+            currentDate = new Date(firstDayOfYear);
             currentDate.setUTCDate(dayOfYear++);
         }
         return resultDays;
@@ -544,8 +546,9 @@ export class RecurrenceRule {
 
             } else {
                 // special expand for yearly                
-                const daysByYear = this.getDaysOfWeekInYear(sourceEvent.getUTCFullYear(), this.byDay.map(day => day.weekday));
-                daysByYear.forEach(d => results.add(d));
+                let days = this.getDaysOfWeekInYear(sourceEvent, this.byDay.map(day => day.weekday));
+                days = this.filterByWeeks(days, this.byDay)
+                days.forEach(d => results.add(d));
             }
     
         } else if (freq == Frequency.MONTHLY) {
