@@ -420,21 +420,56 @@ Deno.test("Yearly in June and July for 10 occurrences",
 );
 
 Deno.test("Every other year on January, February, and March for 10 occurrences",
-    () => {    
-        assertEquals(true, false);
+() => {   
+    const re = new RecurrenceRule("FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3", "1997-03-10T09:00:00-04:00");
+    const dateGenerator = re.GenerateDate();
+    
+    let previousDate:Date = dateGenerator.next().value;
+    let count = 1;
+    for (const eventDate of dateGenerator) {
+        assertArrayIncludes([10], [eventDate.getUTCDate()], "Date is not the 10th");
+        // and Month is 6 or 7
+        previousDate = eventDate;
+        count++;
     }
+    assertEquals(previousDate.valueOf(), (new Date("2003-03-10T09:00:00-04:00")).valueOf(), "Last events don't match.");
+    assertEquals(count, 10, "Expected event counts don't match.");  
+}
 );
 
 Deno.test("Every third year on the 1st, 100th, and 200th day for 10 occurrences",
-    () => {    
-        assertEquals(true, false);
+() => {   
+    const re = new RecurrenceRule("FREQ=YEARLY;INTERVAL=3;COUNT=10;BYYEARDAY=1,100,200", "1997-01-01T09:00:00-04:00");
+    const dateGenerator = re.GenerateDate();
+    
+    let previousDate:Date = dateGenerator.next().value;
+    let count = 1;
+    for (const eventDate of dateGenerator) {
+        // date is 1st, 100th or 200th day of the year
+        previousDate = eventDate;
+        count++;
     }
+    assertEquals(previousDate.valueOf(), (new Date("2006-01-01T09:00:00-04:00")).valueOf(), "Last events don't match.");
+    assertEquals(count, 10, "Expected event counts don't match.");  
+}
 );
 
 Deno.test("Every 20th Monday of the year, forever",
-    () => {    
-        assertEquals(true, false);
+() => {   
+    const re = new RecurrenceRule("FREQ=YEARLY;BYDAY=20MO", "1997-05-19T09:00:00-04:00");
+    const dateGenerator = re.GenerateDate();
+    
+    let previousDate:Date = dateGenerator.next().value;
+    let count = 1;
+    for (const eventDate of dateGenerator) {
+        // Date is the 20th Monday of the Year
+        previousDate = eventDate;
+        count++;
+        if (count == 3) break;
     }
+    assertEquals(previousDate.valueOf(), (new Date("1999-05-17T09:00:00-04:00")).valueOf(), "Last events don't match.");
+    assertEquals(count, 3, "Expected event counts don't match.");  
+}
 );
 
 Deno.test("Monday of week number 20 (where the default start of the week is Monday), forever",

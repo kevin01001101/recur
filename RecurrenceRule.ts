@@ -294,11 +294,10 @@ export class RecurrenceRule {
 
 
     private getYearDay(yearDate: Date, dayOfYear: number): Date {
-        const eventDate = new Date();
+        const eventDate = new Date(yearDate);
         eventDate.setUTCFullYear(yearDate.getUTCFullYear());
         eventDate.setUTCMonth(0);
         eventDate.setUTCDate(dayOfYear);
-        //console.log("days: " + dayOfYear + " date is: " + eventDate);
         return eventDate;
     }
 
