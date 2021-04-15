@@ -3,24 +3,28 @@ import { RecurrenceRule } from "./RecurrenceRule.ts";
 
 
 const start = "1997-09-02T09:00:00-05:00";
-const ONE_DAY = 24 * 3600 * 1000;
 
-// Deno.test("Daily for 10 occurrences",
-//     () => {    
-//         const re = new RecurrenceRule("FREQ=DAILY;COUNT=10", start);
-//         const dateGenerator = re.GenerateDate();
+Deno.test("Daily for 10 occurrences",
+    () => {    
+        const re = new RecurrenceRule("FREQ=DAILY;COUNT=10", start);
+        const dateGenerator = re.GenerateDate();
 
-//         let count = 1;
-//         let previousDate = dateGenerator.next().value;
-//         for (const eventDate of dateGenerator) {
-//             // 1 day between events
-//             assertEquals((eventDate.valueOf() - previousDate.valueOf()), ONE_DAY, "Dates do not differ by 1");
-//             previousDate = eventDate;
-//             count++;
-//         }
-//         assertEquals(count, 10);
-//     }
-// );
+        let count = 1;
+        let previousDate = dateGenerator.next().value;
+        console.log(previousDate);
+        for (const eventDate of dateGenerator) {
+            // 1 day between events
+            console.log(eventDate);
+
+            const diffDate = new Date(eventDate);
+            diffDate.setDate(diffDate.getDate()-1);
+            assertEquals(previousDate.getDate(), diffDate.getDate(), "Dates do not differ by 1 day");
+            previousDate = eventDate;
+            count++;
+        }
+        assertEquals(count, 10);
+    }
+);
 
 // Deno.test("Daily until December 24, 1997",
 //     () => {    
