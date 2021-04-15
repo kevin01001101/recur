@@ -74,13 +74,20 @@ export class RecurrenceRule {
     isValid = true;
     isDateOnly = false;
     start: Date = new Date();
+    time = "";
     last: Date | undefined;
 
     constructor(recurString: string, start?: string) {
         this.parseRecurString(recurString.toUpperCase());
+        if (start != undefined) {
+            this.start = new Date(start);
+            if (this.start.getTime() !== this.start.getTime()) { throw Error("Invalid start date"); }
+            this.time = start.indexOf("T") > 0 ? start.split("T")[1] : "";
+        }
         this.start = start == undefined ? new Date() : new Date(start);
+
         // test to see if a time component was included in the date string
-        this.isDateOnly = start != undefined && (start.indexOf('T') > 0 || start.indexOf(' ') > 0)
+        this.isDateOnly = start != undefined && (start.indexOf('T') == -1 && start.indexOf(' ') == -1)
         this.validate(recurString);
     }
 
@@ -200,8 +207,6 @@ export class RecurrenceRule {
                     });
                     break;
                 case RulePartType.BYDAY:
-                    // more complex....
-                    console.log(ruleValue);
                     this.byDay = ruleValue.split(',').map(v => {
                         const num = Number(v.slice(0, -2));
                         if (num < -53 || num > 53) throw Error("Invalid bywdaylist");
@@ -305,15 +310,17 @@ export class RecurrenceRule {
         const monthDays = [];
         for (let i=0; i < 12; i++) {
             const eventDate = new Date(fromDate);
-            //eventDate.setUTCFullYear(fromDate.getUTCFullYear());
+            const beforeMonth = eventDate.getUTCMonth();
             if (dayOfMonth > 0) {
-                //eventDate.setUTCMonth(fromDate.getUTCMonth());
                 eventDate.setUTCDate(dayOfMonth);
             } else {
-                //eventDate.setUTCMonth(fromDate.getUTCMonth()+1);
                 eventDate.setUTCDate(dayOfMonth+1);
             }
-            monthDays.push(eventDate);
+            // if the month rolled over, it's not a valid day
+            //  e.g., 30 Feb => 1 or 2 March
+            if (eventDate.getUTCMonth() == beforeMonth) {
+                monthDays.push(eventDate);
+            }
         }
         return monthDays;
     }
@@ -358,14 +365,6 @@ export class RecurrenceRule {
         return resultDays;
     }
 
-
-    // private getEventsByFrequency(frequency: Frequency, startTime: Date): Date[] {
-
-    //     const results = this.processEventSet(startTime, frequency).filter(r => r >= this.start);
-    //     //console.log("EventSet: ", results);
-    //     return results;
-    // }
-
     private getNextIntervalTime(frequency: Frequency, offset: number): Date {
 
         const nextTime = new Date(this.start);
@@ -388,7 +387,6 @@ export class RecurrenceRule {
             case Frequency.MONTHLY:
                 nextTime.setUTCMonth(this.start.getUTCMonth() + (this.interval * offset));
                 if (nextTime.getUTCDate() != this.start.getUTCDate()) {
-                    console.log("Something happened.");
                     nextTime.setUTCDate(0);
                 }
                 return nextTime;
@@ -408,12 +406,9 @@ export class RecurrenceRule {
         let eventCount = 0;
         while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
-            if (eventSet.length > 0) console.log("EVENT SET: ", eventSet);
             currentTime = this.getNextIntervalTime(this.frequency, offset++);
-            console.log("NEXT:", currentTime);
             for (const evt of eventSet) {
                 if (this.until != undefined && evt > this.until) {
-                    console.log("END: " + evt + " and until: " + this.until);
                     return;
                 }
                 yield evt;
@@ -429,8 +424,6 @@ export class RecurrenceRule {
     private filterOnDaysOfWeek(events:Set<number>): number[] {
 
         const daysArray = this.byDay.map(day => day.weekday);
-        //  console.log("this.byDay: ", daysArray);
-        //  console.log("events: ", events);
         return [...events].filter(evt => {
             return daysArray.includes(new Date(evt).getUTCDay());
         });
@@ -440,13 +433,13 @@ export class RecurrenceRule {
 
         const results:number[] = [];
         const daysArray = this.byDay.map(day => day.weekday);
-        // console.log("this.byDay: ", daysArray);
-        // events.forEach(e => console.log("EVT: ", new Date(e)));
         [...events].forEach(evt => {
             daysArray.forEach(d => {
                 const expandedDate = new Date(evt);
-                expandedDate.setUTCDate(expandedDate.getUTCDate() + (this.weekStart.valueOf() + d - expandedDate.getUTCDay()));
-                // console.log("DATE:", expandedDate);
+                const dayOfWeek = expandedDate.getUTCDay();
+                let dateOffset = d - dayOfWeek;
+                dateOffset += (this.weekStart.valueOf() - dayOfWeek > dateOffset) ? 7 : 0;
+                expandedDate.setUTCDate(expandedDate.getUTCDate() + dateOffset);
                 results.push(expandedDate.valueOf());
             });
         });
@@ -454,9 +447,6 @@ export class RecurrenceRule {
     }
 
     private getByMonthEvents(sourceEvent: Date, events: Set<number>): Set<number> {
-        // console.log("SourceEvent: ", sourceEvent);
-        // console.log("events: ", events);
-        // console.log("this by month ", this.byMonth);
         if (this.byMonth.length == 0) return events;
 
         const results = new Set<number>();
@@ -464,7 +454,6 @@ export class RecurrenceRule {
             const currentDate = new Date(sourceEvent);
             this.byMonth.forEach(m => {
                 currentDate.setUTCMonth(m-1);
-                // console.log("BYMONTH: ", currentDate);
                 results.add(currentDate.valueOf());
             });
         } else if (this.byMonth.includes(sourceEvent.getUTCMonth()+1)) {
@@ -564,47 +553,57 @@ export class RecurrenceRule {
                 // special expand
                 let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
                 days = this.filterByWeeks(days, this.byDay);
-                console.log("Returning these days: ", days.map(d => new Date(d)));                  
                 days.forEach(d => results.add(d));
             }
         } else if (freq == Frequency.WEEKLY) {
             this.expandByDaysOfWeek(events).forEach(r => results.add(r));
-            console.log("Results after week: ", results);
         } else {
             // limit
             this.filterOnDaysOfWeek(events).forEach(r => results.add(r));
-
         }
 
         return results;
     }
 
     
-    private getByHourEvents(events:Set<number>): Set<number> {
+    private getByHourEvents(freq: Frequency, events:Set<number>): Set<number> {
         if (this.byHour.length == 0) return events;
 
-        const byHourResults = new Set<number>();        
-        events.forEach(e => {
-            this.byHour.forEach(h => {
-                const hourEvent = new Date(e);
-                hourEvent.setUTCHours(h);
-                byHourResults.add(hourEvent.valueOf());
+        const byHourResults = new Set<number>();
+        if (freq < Frequency.HOURLY) {
+            events.forEach(e => {
+                if (this.byHour.includes((new Date(e)).getHours())) byHourResults.add(e);
             });
-        });        
+        } else {
+            events.forEach(e => {
+                this.byHour.forEach(h => {
+                    const hourEvent = new Date(e);
+                    hourEvent.setHours(h);
+                    byHourResults.add(hourEvent.valueOf());
+                });
+            });
+        }
         return byHourResults;
     }
 
-    private getByMinuteEvents(events:Set<number>): Set<number> {
+    private getByMinuteEvents(freq: Frequency, events:Set<number>): Set<number> {
         if (this.byMinute.length == 0) return events;
 
-        const byMinuteResults = new Set<number>();        
-        events.forEach(e => {
-            this.byMinute.forEach(m => {
-                const minuteEvent = new Date(e);
-                minuteEvent.setUTCMinutes(m);
-                byMinuteResults.add(minuteEvent.valueOf());
+        const byMinuteResults = new Set<number>(); 
+
+        if (freq < Frequency.MINUTELY) {
+            events.forEach(e => {
+                if (this.byMinute.includes((new Date(e)).getMinutes())) byMinuteResults.add(e);
             });
-        });
+        } else {
+            events.forEach(e => {
+                this.byMinute.forEach(m => {
+                    const minuteEvent = new Date(e);
+                    minuteEvent.setMinutes(m);
+                    byMinuteResults.add(minuteEvent.valueOf());
+                });
+            });
+        }
         return byMinuteResults;
     }
 
@@ -615,7 +614,7 @@ export class RecurrenceRule {
         events.forEach(e => {            
             this.bySecond.forEach(m => {
                 const minuteEvent = new Date(e);
-                minuteEvent.setUTCSeconds(m);
+                minuteEvent.setSeconds(m);
                 bySecondResults.add(minuteEvent.valueOf());
             });
         });
@@ -625,11 +624,16 @@ export class RecurrenceRule {
     private getEventSet(sourceEvent: Date, freq: Frequency): Date[] {
 
         let resultEventSet = new Set<number>();
+        if (this.byHour.length == 0 && this.byMinute.length == 0 && this.bySecond.length == 0) {
+            const [hours, minutes, seconds] = this.time.split(":").map(s => Number(s));
+            sourceEvent.setHours(hours);
+            sourceEvent.setMinutes(minutes);
+            sourceEvent.setSeconds(seconds);
+        }
         resultEventSet.add(sourceEvent.valueOf());
 
         // BYMONTH
         resultEventSet = this.getByMonthEvents(sourceEvent, resultEventSet)
-        //console.log("A: ", resultEventSet);
 
         // BYWEEKNO
         resultEventSet = this.getByWeekNoEvents(sourceEvent, resultEventSet);
@@ -650,12 +654,10 @@ export class RecurrenceRule {
         if (!this.isDateOnly) {
 
             // BYHOUR
-            resultEventSet = this.getByHourEvents(resultEventSet);
-            //console.log(resultEventSet);
+            resultEventSet = this.getByHourEvents(freq, resultEventSet);
 
             // BYMINUTE
-            resultEventSet = this.getByMinuteEvents(resultEventSet);
-            //console.log(resultEventSet);
+            resultEventSet = this.getByMinuteEvents(freq, resultEventSet);
 
             // BYSECOND
             resultEventSet = this.getBySecondEvents(resultEventSet);
