@@ -79,31 +79,38 @@ export class RecurrenceRule {
     isValid = true;
     start: Date = new Date();
     time?: Time;
-    timezone: string = "";
+    asLocal = false;
     last: Date | undefined;
 
-    constructor(recurString: string, start?: string) {
+    constructor(recurString: string, start?: string, asLocal = false) {
         this.parseRecurString(recurString.toUpperCase());
-        if (start != undefined) {
-            this.start = new Date(start);
-            if (this.start.getTime() !== this.start.getTime()) { throw Error("Invalid start date"); }
-            if (start.indexOf("T") > 0) {
-                const [hours, minutes, seconds] = start.split("T")[1].split(":").map(s => Number(s));
-                // more processing of "seconds"
+        this.start = start == undefined ? new Date() : new Date(start);
+        this.asLocal = asLocal;
+        if (this.start.getTime() !== this.start.getTime()) { throw Error("Invalid start date"); }
+        console.log("START: ", this.start);
+
+        if (start != undefined && start.length > 8 && start.indexOf("T") > -1) {
+            const timeString = start.substring(start.indexOf("T"));
+            if ((timeString.indexOf("+") > -1 || timeString.indexOf("-") > -1) && timeString.indexOf("Z") == -1) {
+                this.asLocal = true;
                 this.time = {
-                    hours,
-                    minutes,
-                    seconds
+                    hours: this.start.getHours(),
+                    minutes: this.start.getMinutes(),
+                    seconds: this.start.getSeconds()
+                };
+            } else {
+                this.time = {
+                    hours: this.start.getUTCHours(),
+                    minutes: this.start.getUTCMinutes(),
+                    seconds: this.start.getUTCSeconds()    
                 };
             }
         }
-        this.start = start == undefined ? new Date() : new Date(start);
 
         // test to see if a time component was included in the date string
         //this.isDateOnly = start != undefined && (start.indexOf('T') == -1 && start.indexOf(' ') == -1)
         this.validate(recurString);
     }
-
 
 
     // *[Symbol.iterator]() {
@@ -275,13 +282,13 @@ export class RecurrenceRule {
     }
 
 
-    private getWeekNumber(inputDate:Date): number {
-        const d = new Date(inputDate);
-        d.setUTCHours(0,0,0,0);
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        const yearStart = new Date(d.getUTCFullYear());
-        return Math.ceil((((d.valueOf() - yearStart.valueOf()) / 86400000) + 1) / 7)
-    }
+    // private getWeekNumber(inputDate:Date): number {
+    //     const d = new Date(inputDate);
+    //     d.setUTCHours(0,0,0,0);
+    //     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    //     const yearStart = new Date(d.getUTCFullYear());
+    //     return Math.ceil((((d.valueOf() - yearStart.valueOf()) / 86400000) + 1) / 7)
+    // }
 
     private getDaysFromWeekNo(weekNumber: number, targetEvent: Date, startOfWeek = 1) {
         
@@ -378,33 +385,33 @@ export class RecurrenceRule {
         return resultDays;
     }
 
-    private getNextIntervalTime(frequency: Frequency, offset: number): Date {
+    private getNextIntervalTime(frequency: Frequency, currentTime: Date): Date {
 
-        const nextTime = new Date(this.start);
+        const nextTime = new Date(currentTime);
         switch (frequency) {
             case Frequency.SECONDLY:
-                nextTime.setUTCSeconds(nextTime.getUTCSeconds() + (this.interval * offset));
+                nextTime.setUTCSeconds(nextTime.getUTCSeconds() + this.interval);
                 return nextTime;
             case Frequency.MINUTELY:
-                nextTime.setUTCMinutes(nextTime.getUTCMinutes() + (this.interval * offset));
+                nextTime.setUTCMinutes(nextTime.getUTCMinutes() + this.interval);
                 return nextTime;
             case Frequency.HOURLY:
-                nextTime.setUTCHours(nextTime.getUTCHours() + (this.interval * offset));
+                nextTime.setUTCHours(nextTime.getUTCHours() + this.interval);
                 return nextTime;
             case Frequency.DAILY:
-                nextTime.setUTCDate(nextTime.getUTCDate() + (this.interval * offset));
+                nextTime.setUTCDate(nextTime.getUTCDate() + this.interval);
                 return nextTime;
             case Frequency.WEEKLY:
-                nextTime.setUTCDate(nextTime.getUTCDate() + 7 * (this.interval * offset));
+                nextTime.setUTCDate(nextTime.getUTCDate() + 7 * this.interval);
                 return nextTime;
             case Frequency.MONTHLY:
-                nextTime.setUTCMonth(this.start.getUTCMonth() + (this.interval * offset));
-                if (nextTime.getUTCDate() != this.start.getUTCDate()) {
-                    nextTime.setUTCDate(0);
-                }
+                nextTime.setUTCMonth(nextTime.getUTCMonth() + this.interval);
+                // if (nextTime.getUTCDate() != this.start.getUTCDate()) {
+                //     nextTime.setUTCDate(0);
+                // }
                 return nextTime;
             case Frequency.YEARLY:
-                nextTime.setUTCFullYear(this.start.getUTCFullYear() + (this.interval * offset));
+                nextTime.setUTCFullYear(nextTime.getUTCFullYear() + this.interval);
                 return nextTime;
         }
     }
@@ -414,13 +421,18 @@ export class RecurrenceRule {
         const coreEventSet = new Set<Date>();
         coreEventSet.add(this.start);
 
-        let currentTime = this.start;
-        let offset = 1;
+        let currentTime = new Date(this.start);
+        console.log("this.start:", this.start);
+        //let offset = 1;
         let eventCount = 0;
         while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
-            currentTime = this.getNextIntervalTime(this.frequency, offset++);
+            //console.log("Events: ", eventSet.length);
+            console.log("NOW: ", currentTime);
+            currentTime = this.getNextIntervalTime(this.frequency, currentTime);
+            console.log("NEXT: ", currentTime);
             for (const evt of eventSet) {
+                console.log("E:", evt);
                 if (this.until != undefined && evt > this.until) {
                     return;
                 }
@@ -547,10 +559,9 @@ export class RecurrenceRule {
 
             } else if (this.byMonth.length > 0) { 
                 // special expand for monthly
-                let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));
+                let days = this.getDaysOfWeekInMonth(events, this.byDay.map(day => day.weekday));   
                 days = this.filterByWeeks(days, this.byDay);
-                days.forEach(d => results.add(d));                
-
+                days.forEach(d => results.add(d));
             } else {
                 // special expand for yearly                
                 let days = this.getDaysOfWeekInYear(sourceEvent, this.byDay.map(day => day.weekday));
@@ -637,15 +648,23 @@ export class RecurrenceRule {
     private getEventSet(sourceEvent: Date, freq: Frequency): Date[] {
 
         let resultEventSet = new Set<number>();
-        if (this.byHour.length == 0 && this.byMinute.length == 0 && this.bySecond.length == 0 && this.time != undefined) {
-            sourceEvent.setHours(this.time.hours);
-            sourceEvent.setMinutes(this.time.minutes);
-            sourceEvent.setSeconds(this.time.seconds);
+        if (this.byHour.length == 0 && this.byMinute.length == 0 && this.bySecond.length == 0 && this.time !== undefined) {
+            if (this.asLocal) {
+                sourceEvent.setHours(this.time.hours);
+                sourceEvent.setMinutes(this.time.minutes);
+                sourceEvent.setSeconds(this.time.seconds);
+            } else {
+                sourceEvent.setUTCHours(this.time.hours);
+                sourceEvent.setUTCMinutes(this.time.minutes);
+                sourceEvent.setUTCSeconds(this.time.seconds);
+            }
         }
+        //console.log("s_ ", sourceEvent);
         resultEventSet.add(sourceEvent.valueOf());
 
         // BYMONTH
         resultEventSet = this.getByMonthEvents(sourceEvent, resultEventSet)
+        //console.log(resultEventSet.forEach(e => console.log(new Date(e))));
 
         // BYWEEKNO
         resultEventSet = this.getByWeekNoEvents(sourceEvent, resultEventSet);
