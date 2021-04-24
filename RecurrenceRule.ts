@@ -329,11 +329,13 @@ export class RecurrenceRule {
         
         const monthDays = [];
         for (let i=0; i < 12; i++) {
+            
             const eventDate = new Date(fromDate);
             const beforeMonth = eventDate.getUTCMonth();
             if (dayOfMonth > 0) {
                 eventDate.setUTCDate(dayOfMonth);
             } else {
+                eventDate.setUTCMonth(eventDate.getUTCMonth()+1);
                 eventDate.setUTCDate(dayOfMonth+1);
             }
             // if the month rolled over, it's not a valid day
@@ -388,6 +390,7 @@ export class RecurrenceRule {
     private getNextIntervalTime(frequency: Frequency, currentTime: Date): Date {
 
         const nextTime = new Date(currentTime);
+        //const currentMonth = currentTime.getUTCMonth();
         switch (frequency) {
             case Frequency.SECONDLY:
                 nextTime.setUTCSeconds(nextTime.getUTCSeconds() + this.interval);
@@ -406,9 +409,11 @@ export class RecurrenceRule {
                 return nextTime;
             case Frequency.MONTHLY:
                 nextTime.setUTCMonth(nextTime.getUTCMonth() + this.interval);
-                // if (nextTime.getUTCDate() != this.start.getUTCDate()) {
-                //     nextTime.setUTCDate(0);
-                // }
+                if (nextTime.getUTCMonth() != (currentTime.getUTCMonth() + this.interval) % 12) {
+                    nextTime.setUTCDate(0);
+                } else {
+                    nextTime.setUTCDate(this.start.getUTCDate());
+                }
                 return nextTime;
             case Frequency.YEARLY:
                 nextTime.setUTCFullYear(nextTime.getUTCFullYear() + this.interval);
@@ -428,9 +433,9 @@ export class RecurrenceRule {
         while (true) {
             const eventSet = this.getEventSet(currentTime, this.frequency).filter(r => r >= this.start);
             //console.log("Events: ", eventSet.length);
-            console.log("NOW: ", currentTime);
+            //console.log("NOW: ", currentTime);
             currentTime = this.getNextIntervalTime(this.frequency, currentTime);
-            console.log("NEXT: ", currentTime);
+            //console.log("NEXT: ", currentTime);
             for (const evt of eventSet) {
                 console.log("E:", evt);
                 if (this.until != undefined && evt > this.until) {
@@ -519,12 +524,14 @@ export class RecurrenceRule {
         if (this.byMonthDay.length == 0) return events;
         
         const monthDayEvents = new Set<number>();
+        console.log("es: ", events);
         events.forEach(evt => {
             this.byMonthDay.forEach(md => {
                 const byMonthDayEvents = this.getMonthDays(new Date(evt), md);
                 byMonthDayEvents.forEach(mde => monthDayEvents.add(mde.valueOf()));
             });
         });
+        console.log(monthDayEvents);
         return monthDayEvents;
     }
 
@@ -648,7 +655,8 @@ export class RecurrenceRule {
     private getEventSet(sourceEvent: Date, freq: Frequency): Date[] {
 
         let resultEventSet = new Set<number>();
-        if (this.byHour.length == 0 && this.byMinute.length == 0 && this.bySecond.length == 0 && this.time !== undefined) {
+        if (freq > Frequency.HOURLY && this.byHour.length == 0 && this.byMinute.length == 0 && this.bySecond.length == 0 && this.time !== undefined) {
+            //console.log("Z");
             if (this.asLocal) {
                 sourceEvent.setHours(this.time.hours);
                 sourceEvent.setMinutes(this.time.minutes);
